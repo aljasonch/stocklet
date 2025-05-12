@@ -1,7 +1,7 @@
 'use client';
 
 import { IItem } from '@/models/Item';
-import { useState, FormEvent, ChangeEvent, useCallback } from 'react';
+import { useState, useEffect, FormEvent, ChangeEvent, useCallback } from 'react';
 
 interface FilterState {
   view: 'monthly' | 'overall' | 'custom_range';
@@ -55,7 +55,49 @@ export default function SalesReportFilters({ onFilterChange, items, isLoadingIte
     
     onFilterChange(filters);
   }, [view, year, month, startDate, endDate, customer, itemId, onFilterChange]); 
-  
+  export default function SalesReportFilters({ onFilterChange, items, isLoadingItems }: SalesReportFiltersProps) {
+  const [view, setView] = useState<'monthly' | 'overall' | 'custom_range'>('overall');
+  const currentYear = new Date().getFullYear();
+  const [year, setYear] = useState<string>(currentYear.toString());
+  const [month, setMonth] = useState<string>(''); 
+  const [customer, setCustomer] = useState('');
+  const [itemId, setItemId] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const handleApplyFilters = useCallback((event?: FormEvent<HTMLFormElement>) => {
+    if (event) event.preventDefault();
+    const filters: FilterState = { view };
+    if (view === 'monthly') {
+      if (year && month) {
+        filters.year = year;
+        filters.month = month;
+      } else if (year) {
+        filters.year = year;
+      }
+    } else if (view === 'custom_range') {
+      if (startDate && endDate) {
+        filters.startDate = startDate;
+        filters.endDate = endDate;
+      }
+    } else if (view === 'overall') {
+      if (year) {
+        filters.year = year;
+      }
+    }
+
+    if (customer) filters.customer = customer;
+    if (itemId) filters.itemId = itemId;
+
+    onFilterChange(filters);
+  }, [view, year, month, startDate, endDate, customer, itemId, onFilterChange]);
+
+  // ✅ Tambahkan ini
+  useEffect(() => {
+    handleApplyFilters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
   const formElementStyles = "appearance-none block w-full px-3 py-2.5 border border-[color:var(--border-color)] rounded-md shadow-sm placeholder-[color:var(--foreground)] placeholder-opacity-50 focus:outline-none focus:ring-2 focus:ring-[color:var(--primary)] focus:border-[color:var(--primary)] sm:text-sm bg-[color:var(--card-bg)] text-[color:var(--foreground)] transition-all duration-150 ease-in-out";
   const labelStyles = "block text-sm font-medium text-[color:var(--foreground)] opacity-90 mb-1";
