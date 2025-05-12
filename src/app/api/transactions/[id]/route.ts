@@ -95,7 +95,7 @@ const updateTransactionHandler: AuthenticatedApiHandler<TransactionRouteParams> 
 
     if (tipe === TransactionType.PENJUALAN) {
         let stockAvailableForSale = currentTargetItem.stokSaatIni;
-        if (oldItemDoc && (oldItemDoc as any)._id.equals((currentTargetItem as any)._id)) {
+        if (oldItemDoc && (oldItemDoc._id as mongoose.Types.ObjectId).equals(currentTargetItem._id as mongoose.Types.ObjectId)) {
             stockAvailableForSale = (oldItemDoc as IItem).stokSaatIni; 
         }
 

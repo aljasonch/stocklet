@@ -56,10 +56,6 @@ export default function SalesReportFilters({ onFilterChange, items, isLoadingIte
     onFilterChange(filters);
   }, [view, year, month, startDate, endDate, customer, itemId, onFilterChange]); 
   
-  useEffect(() => {
-    handleApplyFilters();
-  }, []);
-
   const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
   const formElementStyles = "appearance-none block w-full px-3 py-2.5 border border-[color:var(--border-color)] rounded-md shadow-sm placeholder-[color:var(--foreground)] placeholder-opacity-50 focus:outline-none focus:ring-2 focus:ring-[color:var(--primary)] focus:border-[color:var(--primary)] sm:text-sm bg-[color:var(--card-bg)] text-[color:var(--foreground)] transition-all duration-150 ease-in-out";
   const labelStyles = "block text-sm font-medium text-[color:var(--foreground)] opacity-90 mb-1";
