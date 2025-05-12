@@ -1,24 +1,29 @@
 import { NextResponse, NextRequest } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
-import Transaction from '@/models/Transaction'; 
+import Transaction from '@/models/Transaction';
 import { TransactionType } from '@/types/enums';
 import Item, { IItem } from '@/models/Item';
-import { IUser } from '@/models/User'; 
-import { withAuthStatic } from '@/lib/authUtils';
+import { IUser } from '@/models/User';
+import { withAuthStatic, getUserIdFromToken } from '@/lib/authUtils';
 
 const postHandler = async (req: NextRequest) => {
   await dbConnect();
 
   try {
+    const userId = getUserIdFromToken(req);
+    if (!userId) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
     const {
       tanggal,
       tipe,
       customer,
-      noSJ, 
-      noInv, 
+      noSJ,
+      noInv,
       noPO,
-      itemId, 
+      itemId,
       berat,
       harga,
       noSJSby,
@@ -44,22 +49,23 @@ const postHandler = async (req: NextRequest) => {
         { status: 400 }
       );
     }
-    
+
     const totalHarga = berat * harga;
 
     const newTransaction = new Transaction({
       tanggal,
       tipe,
       customer,
-      noSJ, 
-      noInv, 
+      noSJ,
+      noInv,
       noPO,
       item: itemId,
-      namaBarangSnapshot: item.namaBarang, 
+      namaBarangSnapshot: item.namaBarang,
       berat,
       harga,
-      totalHarga, 
-      noSJSby
+      totalHarga,
+      noSJSby,
+      createdBy: userId
     });
 
     await newTransaction.save();
@@ -80,14 +86,14 @@ const postHandler = async (req: NextRequest) => {
   }
 };
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const getHandler = async (req: NextRequest) => { 
+const getHandler = async (req: NextRequest) => {
   await dbConnect();
 
   try {
-    const transactions = await Transaction.find({}) 
+    const transactions = await Transaction.find({})
       .populate<{item: IItem}>('item', 'namaBarang')
-      .populate<{createdBy: IUser}>('createdBy', 'email') 
-      .sort({ tanggal: -1, createdAt: -1 }); 
+      .populate<{createdBy: IUser}>('createdBy', 'email')
+      .sort({ tanggal: -1, createdAt: -1 });
 
     return NextResponse.json({ transactions }, { status: 200 });
   } catch (error) {
