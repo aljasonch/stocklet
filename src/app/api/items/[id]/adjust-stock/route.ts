@@ -1,16 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import Item from '@/models/Item';
 import mongoose from 'mongoose';
-import { withAuth, AuthenticatedApiHandler } from '@/lib/authUtils';
+import { getUserIdFromToken } from '@/lib/authUtils'; // Import getUserIdFromToken
 
-interface AdjustStockRouteParams {
-  id: string;
-}
+const adjustStockHandler = async (req: NextRequest, { params }: { params: { id: string } }) => { // Revert type
+  // --- Add Auth Check ---
+  const userId = getUserIdFromToken(req);
+  if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+  // --- End Auth Check ---
 
-const adjustStockHandler: AuthenticatedApiHandler<AdjustStockRouteParams> = async (req, { params }) => { // Use specific params type
   await dbConnect();
-  const id = params?.id as string | undefined; 
+  const id = params.id;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json({ message: 'Invalid item ID.' }, { status: 400 });
@@ -50,7 +51,7 @@ const adjustStockHandler: AuthenticatedApiHandler<AdjustStockRouteParams> = asyn
 
     return NextResponse.json({ message: 'Stock adjusted successfully.', item }, { status: 200 });
 
-  } catch (error: unknown) { // Changed any to unknown
+  } catch (error: unknown) {
     console.error(`Adjust stock for item ${id} error:`, error);
     if (error instanceof Error && error.name === 'ValidationError') {
       return NextResponse.json({ message: error.message }, { status: 400 });
@@ -59,4 +60,4 @@ const adjustStockHandler: AuthenticatedApiHandler<AdjustStockRouteParams> = asyn
   }
 };
 
-export const POST = withAuth(adjustStockHandler);
+export const POST = adjustStockHandler; // Remove withAuth wrapper and explicit type

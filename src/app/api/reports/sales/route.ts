@@ -1,10 +1,10 @@
-import { NextResponse } from 'next/server'; 
+import { NextResponse, NextRequest } from 'next/server'; 
 import dbConnect from '@/lib/dbConnect';
 import Transaction from '@/models/Transaction';
 import { TransactionType } from '@/types/enums'; 
 import { IItem } from '@/models/Item'; 
 import mongoose from 'mongoose';
-import { withAuth, AuthenticatedApiHandler } from '@/lib/authUtils';
+import { withAuthStatic } from '@/lib/authUtils';
 
 interface SalesReportMatchQuery {
   tipe: TransactionType;
@@ -13,7 +13,7 @@ interface SalesReportMatchQuery {
   item?: mongoose.Types.ObjectId;
 }
 
-const getSalesReportHandler: AuthenticatedApiHandler = async (req) => { // Removed userId
+const getSalesReportHandler = async (req: NextRequest) => { // Removed userId
   await dbConnect();
 
   try {
@@ -68,4 +68,4 @@ const getSalesReportHandler: AuthenticatedApiHandler = async (req) => { // Remov
   }
 };
 
-export const GET = withAuth(getSalesReportHandler);
+export const GET = withAuthStatic(getSalesReportHandler);

@@ -1,12 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import Transaction from '@/models/Transaction'; 
 import { TransactionType } from '@/types/enums';
 import Item, { IItem } from '@/models/Item';
 import { IUser } from '@/models/User'; 
-import { withAuth, AuthenticatedApiHandler } from '@/lib/authUtils';
+import { withAuthStatic } from '@/lib/authUtils';
 
-const postHandler: AuthenticatedApiHandler = async (req, { userId }) => {
+const postHandler = async (req: NextRequest) => {
   await dbConnect();
 
   try {
@@ -59,8 +59,7 @@ const postHandler: AuthenticatedApiHandler = async (req, { userId }) => {
       berat,
       harga,
       totalHarga, 
-      noSJSby,
-      createdBy: userId, 
+      noSJSby
     });
 
     await newTransaction.save();
@@ -80,8 +79,8 @@ const postHandler: AuthenticatedApiHandler = async (req, { userId }) => {
     );
   }
 };
-
-const getHandler: AuthenticatedApiHandler = async () => { // Removed req and userId
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const getHandler = async (req: NextRequest) => { 
   await dbConnect();
 
   try {
@@ -100,5 +99,5 @@ const getHandler: AuthenticatedApiHandler = async () => { // Removed req and use
   }
 };
 
-export const POST = withAuth(postHandler);
-export const GET = withAuth(getHandler);
+export const POST = withAuthStatic(postHandler);
+export const GET = withAuthStatic(getHandler);

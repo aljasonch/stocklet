@@ -10,7 +10,7 @@ import { fetchWithAuth } from '@/lib/fetchWithAuth'; // Import fetchWithAuth
 export default function EditTransactionPage() {
   const router = useRouter();
   const params = useParams();
-  const id = params?.id as string;
+  const id = params.id;
 
   const [transaction, setTransaction] = useState<ITransaction | null>(null);
   const [isLoading, setIsLoading] = useState(true);

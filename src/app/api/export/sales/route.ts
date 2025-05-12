@@ -5,7 +5,7 @@ import { TransactionType } from '@/types/enums';
 import { IItem } from '@/models/Item';
 import mongoose from 'mongoose';
 import * as XLSX from 'xlsx'; // SheetJS
-import { withAuth } from '@/lib/authUtils';
+import { withAuthStatic } from '@/lib/authUtils';
 
 interface SalesMatchQuery {
   tipe: TransactionType;
@@ -30,7 +30,6 @@ interface SheetRow {
 
 const getExportSalesHandler = async (request: NextRequest): Promise<NextResponse> => {
   await dbConnect();
-
 
   try {
     const { searchParams } = new URL(request.url);
@@ -148,4 +147,4 @@ const getExportSalesHandler = async (request: NextRequest): Promise<NextResponse
   }
 };
 
-export const GET = withAuth(getExportSalesHandler);
+export const GET = withAuthStatic(getExportSalesHandler);

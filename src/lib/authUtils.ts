@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 
 interface DecodedToken extends JwtPayload {
@@ -25,20 +25,14 @@ export function getUserIdFromToken(req: NextRequest): string | null {
     return null;
   }
 }
-type RouteParams = Record<string, string | string[]>;
+// Removed RouteParams type as it was only used by AuthenticatedApiHandler
+// Removed AuthenticatedApiHandler type
+// Removed withAuth function
 
-export type AuthenticatedApiHandler<P = RouteParams> = (
-  req: NextRequest,
-  context: { params?: P; userId: string } 
-) => Promise<Response> | Response;
-
-export function withAuth<P = RouteParams>(handler: AuthenticatedApiHandler<P>) {
-  return async (req: NextRequest, context: { params?: P }) => { // Use generic P
+export function withAuthStatic(handler: (req: NextRequest) => Promise<Response>) {
+  return async (req: NextRequest) => {
     const userId = getUserIdFromToken(req);
-    if (!userId) {
-      return new Response(JSON.stringify({ message: 'Unauthorized: Invalid or missing token.' }), { status: 401 });
-    }
-    const newContext = { ...context, userId };
-    return handler(req, newContext);
+    if (!userId) return new NextResponse('Unauthorized', { status: 401 });
+    return handler(req);
   };
 }

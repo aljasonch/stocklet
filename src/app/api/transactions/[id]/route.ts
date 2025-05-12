@@ -1,14 +1,10 @@
-import { NextResponse } from 'next/server'; 
+import { NextResponse, NextRequest } from 'next/server'; 
 import dbConnect from '@/lib/dbConnect';
 import Transaction, { ITransaction } from '@/models/Transaction';
 import Item, { IItem } from '@/models/Item';
 import { TransactionType } from '@/types/enums';
 import mongoose from 'mongoose';
-import { withAuth, AuthenticatedApiHandler } from '@/lib/authUtils';
-
-interface TransactionRouteParams {
-  id: string;
-}
+import { getUserIdFromToken } from '@/lib/authUtils'; // Import getUserIdFromToken
 
 interface UpdateTransactionRequestBody {
   tanggal: string | Date;
@@ -23,9 +19,14 @@ interface UpdateTransactionRequestBody {
   noSJSby?: string;
 }
 
-const getSingleTransactionHandler: AuthenticatedApiHandler<TransactionRouteParams> = async (req, { params }) => { 
+const getSingleTransactionHandler = async (req: NextRequest, { params }: { params: { id: string } }) => { // Revert type
+  // --- Add Auth Check ---
+  const userId = getUserIdFromToken(req);
+  if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+  // --- End Auth Check ---
+
   await dbConnect();
-  const id = params?.id as string | undefined; 
+  const id = params.id;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json({ message: 'Invalid transaction ID.' }, { status: 400 });
@@ -43,9 +44,14 @@ const getSingleTransactionHandler: AuthenticatedApiHandler<TransactionRouteParam
   }
 };
 
-const updateTransactionHandler: AuthenticatedApiHandler<TransactionRouteParams> = async (req, { params }) => {
+const updateTransactionHandler = async (req: NextRequest, { params }: { params: { id: string } }) => { // Revert type
+  // --- Add Auth Check ---
+  const userId = getUserIdFromToken(req);
+  if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+  // --- End Auth Check ---
+
   await dbConnect();
-  const id = params?.id as string | undefined;
+  const id = params.id;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json({ message: 'Invalid transaction ID.' }, { status: 400 });
@@ -143,9 +149,14 @@ const updateTransactionHandler: AuthenticatedApiHandler<TransactionRouteParams> 
   }
 }
 
-const deleteTransactionHandler: AuthenticatedApiHandler<TransactionRouteParams> = async (req, { params }) => {
+const deleteTransactionHandler = async (req: NextRequest, { params }: { params: { id: string } }) => { // Revert type
+  // --- Add Auth Check ---
+  const userId = getUserIdFromToken(req);
+  if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+  // --- End Auth Check ---
+
   await dbConnect();
-  const id = params?.id as string | undefined;
+  const id = params.id;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json({ message: 'Invalid transaction ID.' }, { status: 400 });
@@ -176,6 +187,6 @@ const deleteTransactionHandler: AuthenticatedApiHandler<TransactionRouteParams> 
   }
 };
 
-export const GET = withAuth(getSingleTransactionHandler);
-export const PUT = withAuth(updateTransactionHandler);
-export const DELETE = withAuth(deleteTransactionHandler);
+export const GET = getSingleTransactionHandler; // Remove withAuth wrapper and explicit type
+export const PUT = updateTransactionHandler; // Remove withAuth wrapper and explicit type
+export const DELETE = deleteTransactionHandler; // Remove withAuth wrapper and explicit type

@@ -1,11 +1,10 @@
-import { NextResponse } from 'next/server'; 
+import { NextResponse, NextRequest } from 'next/server'; 
 import dbConnect from '@/lib/dbConnect';
 import Item from '@/models/Item';
-import { withAuth, AuthenticatedApiHandler } from '@/lib/authUtils';
+import { withAuthStatic } from '@/lib/authUtils';
 
-const postItemHandler: AuthenticatedApiHandler = async (req) => {
+const postItemHandler = async (req: NextRequest) => {
   await dbConnect();
-
 
   try {
     const { namaBarang, stokAwal } = await req.json();
@@ -55,10 +54,9 @@ const postItemHandler: AuthenticatedApiHandler = async (req) => {
     );
   }
 };
-
-const getItemHandler: AuthenticatedApiHandler = async () => { // Removed req and userId
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const getItemHandler = async (req: NextRequest) => {
   await dbConnect();
-
 
   try {
     const items = await Item.find({}).sort({ createdAt: -1 });
@@ -72,5 +70,5 @@ const getItemHandler: AuthenticatedApiHandler = async () => { // Removed req and
   }
 };
 
-export const POST = withAuth(postItemHandler);
-export const GET = withAuth(getItemHandler);
+export const POST = withAuthStatic(postItemHandler);
+export const GET = withAuthStatic(getItemHandler);

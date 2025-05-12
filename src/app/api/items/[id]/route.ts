@@ -1,17 +1,18 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import Item from '@/models/Item';
-import Transaction from '@/models/Transaction'; 
+import Transaction from '@/models/Transaction';
 import mongoose from 'mongoose';
-import { withAuth, AuthenticatedApiHandler } from '@/lib/authUtils';
+import { getUserIdFromToken } from '@/lib/authUtils'; // Import getUserIdFromToken
 
-interface ItemRouteParams {
-  id: string;
-}
+const getSingleItemHandler = async (req: NextRequest, { params }: { params: { id: string } }) => { // Revert type
+  // --- Add Auth Check ---
+  const userId = getUserIdFromToken(req);
+  if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+  // --- End Auth Check ---
 
-const getSingleItemHandler: AuthenticatedApiHandler<ItemRouteParams> = async (req, { params }) => {
   await dbConnect();
-  const id = params?.id as string | undefined;
+  const id = params.id;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json({ message: 'Invalid item ID.' }, { status: 400 });
@@ -29,9 +30,14 @@ const getSingleItemHandler: AuthenticatedApiHandler<ItemRouteParams> = async (re
   }
 };
 
-const deleteItemHandler: AuthenticatedApiHandler<ItemRouteParams> = async (req, { params }) => {
+const deleteItemHandler = async (req: NextRequest, { params }: { params: { id: string } }) => { // Revert type
+  // --- Add Auth Check ---
+  const userId = getUserIdFromToken(req);
+  if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+  // --- End Auth Check ---
+
   await dbConnect();
-  const id = params?.id as string | undefined;
+  const id = params.id;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json({ message: 'Invalid item ID.' }, { status: 400 });
@@ -57,5 +63,5 @@ const deleteItemHandler: AuthenticatedApiHandler<ItemRouteParams> = async (req, 
   }
 };
 
-export const GET = withAuth(getSingleItemHandler);
-export const DELETE = withAuth(deleteItemHandler);
+export const GET = getSingleItemHandler; // Remove withAuth wrapper and explicit type
+export const DELETE = deleteItemHandler; // Remove withAuth wrapper and explicit type
