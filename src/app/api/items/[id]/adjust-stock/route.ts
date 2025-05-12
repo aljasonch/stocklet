@@ -3,7 +3,6 @@ import dbConnect from '@/lib/dbConnect';
 import Item from '@/models/Item';
 import mongoose from 'mongoose';
 import { withAuth, AuthenticatedApiHandler } from '@/lib/authUtils';
-import { ObjectId } from 'mongoose'; // Import ObjectId type
 
 interface AdjustStockRouteParams {
   id: string;

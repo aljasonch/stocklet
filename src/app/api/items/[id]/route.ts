@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server'; // Removed NextRequest
+import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import Item from '@/models/Item';
 import Transaction from '@/models/Transaction'; 
-import mongoose, { ObjectId } from 'mongoose'; // Import ObjectId
+import mongoose from 'mongoose';
 import { withAuth, AuthenticatedApiHandler } from '@/lib/authUtils';
 
 interface ItemRouteParams {

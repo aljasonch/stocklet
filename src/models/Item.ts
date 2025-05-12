@@ -14,7 +14,7 @@ const ItemSchema: Schema<IItem> = new Schema(
       type: String,
       required: [true, 'Nama barang is required.'],
       trim: true,
-      unique: true, // Assuming item names are unique
+      unique: true,
     },
     stokAwal: {
       type: Number,
@@ -29,15 +29,14 @@ const ItemSchema: Schema<IItem> = new Schema(
       min: [0, 'Stok saat ini cannot be negative.'],
     },
   },
-  { timestamps: true } // Adds createdAt and updatedAt automatically
+  { timestamps: true } 
 );
 
-// Initialize stokSaatIni with stokAwal value if not provided or upon creation
-ItemSchema.pre('save', function (this: IItem, next: (error?: any) => void) {
+ItemSchema.pre('save', function (this: IItem, next: (error?: Error) => void) {
   if (this.isNew && this.stokSaatIni === 0 && this.stokAwal > 0) {
     this.stokSaatIni = this.stokAwal;
   } else if (this.isNew && this.stokSaatIni === 0 && this.stokAwal === 0) {
-    this.stokSaatIni = 0; // Explicitly set to 0 if stokAwal is 0
+    this.stokSaatIni = 0; 
   }
   next();
 });

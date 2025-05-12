@@ -1,22 +1,22 @@
 import mongoose, { Schema, Document, models, Model } from 'mongoose';
 import { IUser } from './User'; 
 import { IItem } from './Item'; 
-import { TransactionType } from '@/types/enums'; // Updated import path
+import { TransactionType } from '@/types/enums'; 
 
 export interface ITransaction extends Document {
   tanggal: Date;
   tipe: TransactionType;
-  customer: string; // or supplier
-  noSJ?: string; // Nomor Surat Jalan
-  noInv?: string; // Nomor Invoice
+  customer: string; 
+  noSJ?: string; 
+  noInv?: string; 
   noPO?: string;
-  item: mongoose.Types.ObjectId | IItem; // Reference to Item
-  namaBarangSnapshot: string; // To store item name at the time of transaction
-  berat: number; // kg
-  harga: number; // price per kg
+  item: mongoose.Types.ObjectId | IItem; 
+  namaBarangSnapshot: string; 
+  berat: number;
+  harga: number;
   totalHarga: number;
   noSJSby?: string;
-  createdBy: mongoose.Types.ObjectId | IUser; // Reference to User
+  createdBy: mongoose.Types.ObjectId | IUser; 
   createdAt: Date;
 }
 
@@ -33,7 +33,6 @@ const TransactionSchema: Schema<ITransaction> = new Schema(
       required: [true, 'Tipe transaksi is required.'],
     },
     customer: {
-      // Can be customer for PENJUALAN or supplier for PEMBELIAN
       type: String,
       trim: true,
       required: [true, 'Customer/Supplier is required.'],
@@ -83,19 +82,17 @@ const TransactionSchema: Schema<ITransaction> = new Schema(
       required: [true, 'Created by user is required.'],
     },
   },
-  { timestamps: { createdAt: true, updatedAt: false } } // Only createdAt, no updatedAt for transactions
+  { timestamps: { createdAt: true, updatedAt: false } }
 );
 
-// Middleware to calculate totalHarga before saving
-TransactionSchema.pre<ITransaction>('save', function (this: ITransaction, next: (error?: any) => void) {
+TransactionSchema.pre<ITransaction>('save', function (this: ITransaction, next: (error?: Error) => void) {
   if (this.isModified('berat') || this.isModified('harga')) {
     this.totalHarga = this.berat * this.harga;
   }
   next();
 });
 
-// Middleware to update stock after a transaction is saved
-TransactionSchema.post<ITransaction>('save', async function (doc: ITransaction, next: (error?: any) => void) {
+TransactionSchema.post<ITransaction>('save', async function (doc: ITransaction, next: (error?: Error) => void) { 
   try {
     const item = await mongoose.model<IItem>('Item').findById(doc.item);
     if (item) {
@@ -107,8 +104,12 @@ TransactionSchema.post<ITransaction>('save', async function (doc: ITransaction, 
       await item.save();
     }
     next();
-  } catch (error: any) {
-    next(error);
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      next(error);
+    } else {
+      next(new Error('An unknown error occurred in post-save hook'));
+    }
   }
 });
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { IItem } from '@/models/Item';
-import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import { useState, useEffect, FormEvent, ChangeEvent, useCallback } from 'react';
 
 interface FilterState {
   view: 'monthly' | 'overall' | 'custom_range';
@@ -23,15 +23,14 @@ export default function SalesReportFilters({ onFilterChange, items, isLoadingIte
   const [view, setView] = useState<'monthly' | 'overall' | 'custom_range'>('overall');
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState<string>(currentYear.toString());
-  const [month, setMonth] = useState<string>(''); // 1-12
+  const [month, setMonth] = useState<string>(''); 
   const [customer, setCustomer] = useState('');
   const [itemId, setItemId] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  const handleApplyFilters = (event?: FormEvent<HTMLFormElement>) => {
+  const handleApplyFilters = useCallback((event?: FormEvent<HTMLFormElement>) => {
     if (event) event.preventDefault();
-    // Initialize filters with the correct type, ensuring view is always present
     const filters: FilterState = { view }; 
     if (view === 'monthly') {
       if (year && month) {
@@ -55,13 +54,13 @@ export default function SalesReportFilters({ onFilterChange, items, isLoadingIte
     if (itemId) filters.itemId = itemId;
     
     onFilterChange(filters);
-  };
+  }, [view, year, month, startDate, endDate, customer, itemId, onFilterChange]); 
   
   useEffect(() => {
     handleApplyFilters();
-  }, []); 
+  }, []);
 
-  const years = Array.from({ length: 10 }, (_, i) => currentYear - i); // Last 10 years
+  const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
   const formElementStyles = "appearance-none block w-full px-3 py-2.5 border border-[color:var(--border-color)] rounded-md shadow-sm placeholder-[color:var(--foreground)] placeholder-opacity-50 focus:outline-none focus:ring-2 focus:ring-[color:var(--primary)] focus:border-[color:var(--primary)] sm:text-sm bg-[color:var(--card-bg)] text-[color:var(--foreground)] transition-all duration-150 ease-in-out";
   const labelStyles = "block text-sm font-medium text-[color:var(--foreground)] opacity-90 mb-1";
 

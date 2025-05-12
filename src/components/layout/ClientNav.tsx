@@ -32,7 +32,7 @@
       if (isMobileMenuOpen) {
         setIsMobileMenuOpen(false);
       }
-    }, [pathname]);
+    }, [pathname, isMobileMenuOpen]); // Added isMobileMenuOpen to dependencies
 
 
     if (isLoading) {

@@ -48,7 +48,7 @@ export default function SalesReportPage() {
     fetchItems();
   }, []);
 
-  const fetchReportData = useCallback(async (currentFilters: FilterState) => { // Use FilterState
+  const fetchReportData = useCallback(async (currentFilters: FilterState) => { 
     setIsLoadingReport(true);
     setReportError(null);
 
@@ -62,7 +62,7 @@ export default function SalesReportPage() {
     if (currentFilters.endDate) queryParams.append('endDate', currentFilters.endDate);
 
     try {
-      const response = await fetchWithAuth(`/api/reports/sales?${queryParams.toString()}`); // Use fetchWithAuth
+      const response = await fetchWithAuth(`/api/reports/sales?${queryParams.toString()}`); 
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.message || 'Failed to fetch sales report');
@@ -84,9 +84,9 @@ export default function SalesReportPage() {
   }, [filters, fetchReportData]);
 
 
-  const handleFilterChange = (newFilters: FilterState) => { // Use FilterState
+  const handleFilterChange = useCallback((newFilters: FilterState) => {
     setFilters(newFilters);
-  };
+  }, []);
 
   const handleExport = async () => {
     const queryParams = new URLSearchParams();

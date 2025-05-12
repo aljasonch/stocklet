@@ -10,6 +10,19 @@ interface TransactionRouteParams {
   id: string;
 }
 
+interface UpdateTransactionRequestBody {
+  tanggal: string | Date;
+  tipe: TransactionType;
+  customer: string;
+  noSJ?: string;
+  noInv?: string;
+  noPO?: string;
+  itemId: string | mongoose.Types.ObjectId;
+  berat: number;
+  harga: number;
+  noSJSby?: string;
+}
+
 const getSingleTransactionHandler: AuthenticatedApiHandler<TransactionRouteParams> = async (req, { params }) => { 
   await dbConnect();
   const id = params?.id as string | undefined; 
@@ -39,7 +52,7 @@ const updateTransactionHandler: AuthenticatedApiHandler<TransactionRouteParams> 
   }
 
   try {
-    const body = await req.json();
+    const body: UpdateTransactionRequestBody = await req.json(); // Use the defined interface
     const {
       tanggal, tipe, customer, noSJ, noInv, noPO, itemId,
       berat, harga, noSJSby,
@@ -73,7 +86,7 @@ const updateTransactionHandler: AuthenticatedApiHandler<TransactionRouteParams> 
         oldItem.stokSaatIni -= oldTransaction.berat;
       }
       
-      if (!(oldItem as any)._id.equals((currentTargetItem as any)._id)) { 
+      if (!(oldItem._id as mongoose.Types.ObjectId).equals(currentTargetItem._id as mongoose.Types.ObjectId)) { 
         await oldItem.save();
       }
     }
@@ -94,7 +107,8 @@ const updateTransactionHandler: AuthenticatedApiHandler<TransactionRouteParams> 
         }
     }
     
-    if (oldItemDoc && (oldItemDoc as any)._id.equals((currentTargetItem as any)._id)) {
+    // Cast _id to ObjectId before comparison
+    if (oldItemDoc && (oldItemDoc._id as mongoose.Types.ObjectId).equals(currentTargetItem._id as mongoose.Types.ObjectId)) {
         (oldItemDoc as IItem).stokSaatIni += stockChangeForNewItem;
         await (oldItemDoc as IItem).save();
     } else {
@@ -102,9 +116,14 @@ const updateTransactionHandler: AuthenticatedApiHandler<TransactionRouteParams> 
         await currentTargetItem.save();
     }
 
+    // Ensure tanggal is Date and itemId is ObjectId
+    const finalItemId = typeof itemId === 'string' ? new mongoose.Types.ObjectId(itemId) : itemId;
+    const finalTanggal = typeof tanggal === 'string' ? new Date(tanggal) : tanggal;
+
     const updatedTransactionData: Partial<ITransaction> = {
-      tanggal, tipe, customer, noSJ, noInv, noPO, // Changed
-      item: itemId, 
+      tanggal: finalTanggal, // Use converted Date
+      tipe, customer, noSJ, noInv, noPO,
+      item: finalItemId, // Use converted ObjectId
       namaBarangSnapshot: item.namaBarang,
       berat, harga, 
       totalHarga: berat * harga, 
