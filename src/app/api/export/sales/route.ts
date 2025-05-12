@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'; 
+import { NextResponse, NextRequest } from 'next/server'; 
 import dbConnect from '@/lib/dbConnect';
 import Transaction from '@/models/Transaction';
 import { TransactionType } from '@/types/enums'; 
@@ -28,12 +28,12 @@ interface SheetRow {
 }
 
 
-const getExportSalesHandler: AuthenticatedApiHandler = async (req) => {
+const getExportSalesHandler = async (request: NextRequest): Promise<NextResponse> => {
   await dbConnect();
 
 
   try {
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(request.url);
     const month = searchParams.get('month');
     const year = searchParams.get('year');
     const customer = searchParams.get('customer');

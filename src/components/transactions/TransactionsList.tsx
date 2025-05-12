@@ -2,7 +2,7 @@
 
 import { ITransaction } from '@/models/Transaction';
 import { useEffect, useState } from 'react';
-import Link from 'next/link'; // Import Link
+import Link from 'next/link'; 
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 interface TransactionsListProps {
