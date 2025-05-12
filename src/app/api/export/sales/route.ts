@@ -5,7 +5,7 @@ import { TransactionType } from '@/types/enums';
 import { IItem } from '@/models/Item';
 import mongoose from 'mongoose';
 import * as XLSX from 'xlsx'; // SheetJS
-import { withAuth, AuthenticatedApiHandler } from '@/lib/authUtils';
+import { withAuth } from '@/lib/authUtils';
 
 interface SalesMatchQuery {
   tipe: TransactionType;
