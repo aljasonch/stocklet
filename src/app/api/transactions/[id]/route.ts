@@ -1,26 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server'; 
 import dbConnect from '@/lib/dbConnect';
 import Transaction, { ITransaction } from '@/models/Transaction';
 import Item, { IItem } from '@/models/Item';
-import User, { IUser } from '@/models/User'; // Ensure User model is registered and IUser is imported
 import { TransactionType } from '@/types/enums';
 import mongoose from 'mongoose';
 import { withAuth, AuthenticatedApiHandler } from '@/lib/authUtils';
 
-interface Params {
+interface TransactionRouteParams {
   id: string;
 }
 
-const getSingleTransactionHandler: AuthenticatedApiHandler = async (req, { params, userId }) => {
+const getSingleTransactionHandler: AuthenticatedApiHandler<TransactionRouteParams> = async (req, { params }) => { 
   await dbConnect();
-  const id = params?.id; // id from context.params
+  const id = params?.id as string | undefined; 
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json({ message: 'Invalid transaction ID.' }, { status: 400 });
   }
 
   try {
-    // Optionally, check if transaction belongs to userId if transactions are user-specific
     const transaction = await Transaction.findById(id).populate<{item: IItem}>('item', 'namaBarang');
     if (!transaction) {
       return NextResponse.json({ message: 'Transaction not found.' }, { status: 404 });
@@ -32,9 +30,9 @@ const getSingleTransactionHandler: AuthenticatedApiHandler = async (req, { param
   }
 };
 
-const updateTransactionHandler: AuthenticatedApiHandler = async (req, { params, userId }) => {
+const updateTransactionHandler: AuthenticatedApiHandler<TransactionRouteParams> = async (req, { params }) => {
   await dbConnect();
-  const id = params?.id;
+  const id = params?.id as string | undefined;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json({ message: 'Invalid transaction ID.' }, { status: 400 });
@@ -43,11 +41,9 @@ const updateTransactionHandler: AuthenticatedApiHandler = async (req, { params, 
   try {
     const body = await req.json();
     const {
-      tanggal, tipe, customer, noSJ, noInv, noPO, itemId, // Changed noSJInv to noSJ, noInv
+      tanggal, tipe, customer, noSJ, noInv, noPO, itemId,
       berat, harga, noSJSby,
     } = body;
-
-    // Basic validation
     if (!tanggal || !tipe || !customer || !itemId || typeof berat === 'undefined' || typeof harga === 'undefined') {
       return NextResponse.json({ message: 'Missing required fields (tanggal, tipe, customer, itemId, berat, harga).' }, { status: 400 });
     }
@@ -65,11 +61,8 @@ const updateTransactionHandler: AuthenticatedApiHandler = async (req, { params, 
       return NextResponse.json({ message: 'Item not found.' }, { status: 404 });
     }
     
-    // --- Stock adjustment logic ---
-    // Revert old stock change
-    const oldItemDoc = await Item.findById(oldTransaction.item as mongoose.Types.ObjectId); // Ensure oldTransaction.item is treated as ID
+    const oldItemDoc = await Item.findById(oldTransaction.item as mongoose.Types.ObjectId);
     
-    // item is already confirmed not null here, so it's IItem
     const currentTargetItem = item as IItem; 
 
     if (oldItemDoc) {
@@ -80,7 +73,6 @@ const updateTransactionHandler: AuthenticatedApiHandler = async (req, { params, 
         oldItem.stokSaatIni -= oldTransaction.berat;
       }
       
-      // If item ID changed during the update, save the stock adjustment for the old item.
       if (!(oldItem as any)._id.equals((currentTargetItem as any)._id)) { 
         await oldItem.save();
       }
@@ -90,9 +82,6 @@ const updateTransactionHandler: AuthenticatedApiHandler = async (req, { params, 
 
     if (tipe === TransactionType.PENJUALAN) {
         let stockAvailableForSale = currentTargetItem.stokSaatIni;
-        // If the transaction is for the same item as before,
-        // its stock (currentTargetItem.stokSaatIni) might not yet reflect the revert from oldItemDoc.
-        // So, if oldItemDoc exists and is the same as currentTargetItem, use oldItemDoc's stock which includes the revert.
         if (oldItemDoc && (oldItemDoc as any)._id.equals((currentTargetItem as any)._id)) {
             stockAvailableForSale = (oldItemDoc as IItem).stokSaatIni; 
         }
@@ -105,18 +94,13 @@ const updateTransactionHandler: AuthenticatedApiHandler = async (req, { params, 
         }
     }
     
-    // Apply the new stock change
     if (oldItemDoc && (oldItemDoc as any)._id.equals((currentTargetItem as any)._id)) {
-        // If it's the same item, oldItemDoc's stock was reverted. Now apply the new transaction's effect.
         (oldItemDoc as IItem).stokSaatIni += stockChangeForNewItem;
         await (oldItemDoc as IItem).save();
     } else {
-        // If it's a new item (or oldItemDoc was null), apply the change to currentTargetItem.
-        // If oldItemDoc was different, its stock was already saved.
         currentTargetItem.stokSaatIni += stockChangeForNewItem;
         await currentTargetItem.save();
     }
-    // --- End of stock adjustment ---
 
     const updatedTransactionData: Partial<ITransaction> = {
       tanggal, tipe, customer, noSJ, noInv, noPO, // Changed
@@ -125,39 +109,35 @@ const updateTransactionHandler: AuthenticatedApiHandler = async (req, { params, 
       berat, harga, 
       totalHarga: berat * harga, 
       noSJSby,
-      // createdBy: userId, // Or keep original createdBy, depending on business logic
     };
 
     const updatedTransaction = await Transaction.findByIdAndUpdate(id, updatedTransactionData, { new: true });
 
     return NextResponse.json({ message: 'Transaction updated successfully.', transaction: updatedTransaction }, { status: 200 });
 
-  } catch (error: any) {
+  } catch (error: unknown) { 
     console.error(`Update transaction ${id} error:`, error);
-    if (error.name === 'ValidationError') {
+    if (error instanceof Error && error.name === 'ValidationError') {
       return NextResponse.json({ message: error.message }, { status: 400 });
     }
     return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
   }
 }
 
-// DELETE a transaction
-const deleteTransactionHandler: AuthenticatedApiHandler = async (req, { params, userId }) => {
+const deleteTransactionHandler: AuthenticatedApiHandler<TransactionRouteParams> = async (req, { params }) => {
   await dbConnect();
-  const id = params?.id;
+  const id = params?.id as string | undefined;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json({ message: 'Invalid transaction ID.' }, { status: 400 });
   }
   
   try {
-    // Optionally, check if transaction belongs to userId or if user has permission
     const transactionToDelete = await Transaction.findById(id);
     if (!transactionToDelete) {
       return NextResponse.json({ message: 'Transaction not found to delete.' }, { status: 404 });
     }
 
-    // Revert stock change before deleting transaction
     const item = await Item.findById(transactionToDelete.item);
     if (item) {
       if (transactionToDelete.tipe === TransactionType.PENJUALAN) {
@@ -171,7 +151,7 @@ const deleteTransactionHandler: AuthenticatedApiHandler = async (req, { params, 
     await Transaction.findByIdAndDelete(id);
     return NextResponse.json({ message: 'Transaction deleted successfully.' }, { status: 200 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Delete transaction ${id} error:`, error);
     return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
   }

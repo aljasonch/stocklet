@@ -5,11 +5,21 @@ import SalesReportTable from '@/components/reports/SalesReportTable';
 import { ITransaction } from '@/models/Transaction';
 import { IItem } from '@/models/Item';
 import { useState, useEffect, useCallback } from 'react';
-import { fetchWithAuth } from '@/lib/fetchWithAuth'; // Import fetchWithAuth
+import { fetchWithAuth } from '@/lib/fetchWithAuth'; 
+
+interface FilterState {
+  view?: string;
+  year?: string;
+  month?: string;
+  customer?: string;
+  itemId?: string;
+  startDate?: string;
+  endDate?: string;
+}
 
 export default function SalesReportPage() {
   const [reportData, setReportData] = useState<ITransaction[]>([]);
-  const [filters, setFilters] = useState<any>({});
+  const [filters, setFilters] = useState<FilterState>({}); // Use FilterState
   const [isLoadingReport, setIsLoadingReport] = useState(true);
   const [reportError, setReportError] = useState<string | null>(null);
 
@@ -17,21 +27,20 @@ export default function SalesReportPage() {
   const [isLoadingItems, setIsLoadingItems] = useState(true);
   const [itemsError, setItemsError] = useState<string | null>(null);
 
-  // Fetch items for the filter dropdown
   useEffect(() => {
     const fetchItems = async () => {
       setIsLoadingItems(true);
       setItemsError(null);
       try {
-        const response = await fetchWithAuth('/api/items'); // Use fetchWithAuth
+        const response = await fetchWithAuth('/api/items'); 
         if (!response.ok) {
           const data = await response.json();
           throw new Error(data.message || 'Failed to fetch items for filters');
         }
         const data = await response.json();
         setItems(data.items || []);
-      } catch (err: any) {
-        setItemsError(err.message);
+      } catch (err: unknown) { 
+        setItemsError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
         setIsLoadingItems(false);
       }
@@ -39,11 +48,10 @@ export default function SalesReportPage() {
     fetchItems();
   }, []);
 
-  // Fetch report data based on filters
-  const fetchReportData = useCallback(async (currentFilters: any) => {
+  const fetchReportData = useCallback(async (currentFilters: FilterState) => { // Use FilterState
     setIsLoadingReport(true);
     setReportError(null);
-    
+
     const queryParams = new URLSearchParams();
     if (currentFilters.view) queryParams.append('view', currentFilters.view);
     if (currentFilters.year) queryParams.append('year', currentFilters.year);
@@ -61,24 +69,22 @@ export default function SalesReportPage() {
       }
       const data = await response.json();
       setReportData(data.salesReport || []);
-    } catch (err: any) {
-      setReportError(err.message);
+    } catch (err: unknown) {
+      setReportError(err instanceof Error ? err.message : 'An unknown error occurred');
       setReportData([]);
     } finally {
       setIsLoadingReport(false);
     }
   }, []);
 
-  // Effect to fetch data when filters change
   useEffect(() => {
-    // Only fetch if filters object is not empty (i.e., initial filters are set)
     if (Object.keys(filters).length > 0) {
         fetchReportData(filters);
     }
   }, [filters, fetchReportData]);
 
 
-  const handleFilterChange = (newFilters: any) => {
+  const handleFilterChange = (newFilters: FilterState) => { // Use FilterState
     setFilters(newFilters);
   };
 
@@ -92,7 +98,6 @@ export default function SalesReportPage() {
     if (filters.startDate) queryParams.append('startDate', filters.startDate);
     if (filters.endDate) queryParams.append('endDate', filters.endDate);
 
-    // Trigger file download
     window.location.href = `/api/export/sales?${queryParams.toString()}`;
   };
 

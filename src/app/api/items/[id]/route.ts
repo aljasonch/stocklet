@@ -1,18 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server'; // Removed NextRequest
 import dbConnect from '@/lib/dbConnect';
 import Item from '@/models/Item';
-import Transaction from '@/models/Transaction'; // To check for related transactions
-import mongoose from 'mongoose';
+import Transaction from '@/models/Transaction'; 
+import mongoose, { ObjectId } from 'mongoose'; // Import ObjectId
 import { withAuth, AuthenticatedApiHandler } from '@/lib/authUtils';
 
-interface Params {
+interface ItemRouteParams {
   id: string;
 }
 
-// GET a single item by ID (optional, can be useful for an edit item form later)
-const getSingleItemHandler: AuthenticatedApiHandler = async (req, { params }) => {
+const getSingleItemHandler: AuthenticatedApiHandler<ItemRouteParams> = async (req, { params }) => {
   await dbConnect();
-  const id = params?.id;
+  const id = params?.id as string | undefined;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json({ message: 'Invalid item ID.' }, { status: 400 });
@@ -30,17 +29,15 @@ const getSingleItemHandler: AuthenticatedApiHandler = async (req, { params }) =>
   }
 };
 
-// DELETE an item
-const deleteItemHandler: AuthenticatedApiHandler = async (req, { params }) => {
+const deleteItemHandler: AuthenticatedApiHandler<ItemRouteParams> = async (req, { params }) => {
   await dbConnect();
-  const id = params?.id;
+  const id = params?.id as string | undefined;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json({ message: 'Invalid item ID.' }, { status: 400 });
   }
 
   try {
-    // Check if there are any transactions associated with this item
     const relatedTransactions = await Transaction.findOne({ item: id });
     if (relatedTransactions) {
       return NextResponse.json(
@@ -60,11 +57,5 @@ const deleteItemHandler: AuthenticatedApiHandler = async (req, { params }) => {
   }
 };
 
-// Placeholder for PUT (update item) if needed later
-// const updateItemHandler: AuthenticatedApiHandler = async (req, { params, userId }) => {
-//   // ... implementation ...
-// };
-
 export const GET = withAuth(getSingleItemHandler);
 export const DELETE = withAuth(deleteItemHandler);
-// export const PUT = withAuth(updateItemHandler); // Uncomment if PUT is implemented

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import ClientNav from "@/components/layout/ClientNav"; 
@@ -42,7 +41,7 @@ export default function RootLayout({
             {children}
           </main>
           <footer className="text-center py-6 mt-auto text-sm" style={{ backgroundColor: 'var(--card-bg)', borderTop: '1px solid var(--border-color)', color: 'var(--foreground)', opacity: 0.8 }}>
-            <p>&copy; {new Date().getFullYear()} Stocklet. Created by aljasonch.</p>
+            <p>&copy; {new Date().getFullYear()} Stocklet Beta. Created by aljasonch.</p>
           </footer>
         </AuthProvider>
       </body>

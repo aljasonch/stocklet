@@ -1,17 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import Item from '@/models/Item';
 import mongoose from 'mongoose';
-import { withAuth, AuthenticatedApiHandler } from '@/lib/authUtils'; // Assuming this path is correct
+import { withAuth, AuthenticatedApiHandler } from '@/lib/authUtils';
+import { ObjectId } from 'mongoose'; // Import ObjectId type
 
-interface AdjustStockParams {
+interface AdjustStockRouteParams {
   id: string;
 }
 
-// This should be a POST request to /api/items/[id]/adjust-stock
-const adjustStockHandler: AuthenticatedApiHandler = async (req, { params }) => {
+const adjustStockHandler: AuthenticatedApiHandler<AdjustStockRouteParams> = async (req, { params }) => { // Use specific params type
   await dbConnect();
-  const id = params?.id; // id from dynamic route segment
+  const id = params?.id as string | undefined; 
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json({ message: 'Invalid item ID.' }, { status: 400 });
@@ -19,7 +19,7 @@ const adjustStockHandler: AuthenticatedApiHandler = async (req, { params }) => {
 
   try {
     const body = await req.json();
-    const { adjustment, type } = body; // adjustment is a number, type can be 'set', 'add', 'subtract'
+    const { adjustment, type } = body; 
 
     if (typeof adjustment !== 'number' || isNaN(adjustment)) {
       return NextResponse.json({ message: 'Adjustment value must be a number.' }, { status: 400 });
@@ -49,14 +49,11 @@ const adjustStockHandler: AuthenticatedApiHandler = async (req, { params }) => {
     item.stokSaatIni = newStock;
     await item.save();
 
-    // Optionally, log this adjustment as a special type of transaction if audit trail is needed.
-    // For now, direct adjustment.
-
     return NextResponse.json({ message: 'Stock adjusted successfully.', item }, { status: 200 });
 
-  } catch (error: any) {
+  } catch (error: unknown) { // Changed any to unknown
     console.error(`Adjust stock for item ${id} error:`, error);
-    if (error.name === 'ValidationError') {
+    if (error instanceof Error && error.name === 'ValidationError') {
       return NextResponse.json({ message: error.message }, { status: 400 });
     }
     return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });

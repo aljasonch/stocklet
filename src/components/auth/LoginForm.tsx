@@ -30,9 +30,9 @@ export default function LoginForm() {
         throw new Error(data.message || 'Login failed');
       }
 
-      login(data.token, data.user); 
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+      login(data.token, data.user);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setIsLoading(false);
     }

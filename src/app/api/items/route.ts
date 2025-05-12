@@ -1,13 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server'; 
 import dbConnect from '@/lib/dbConnect';
-import Item, { IItem } from '@/models/Item';
-import { withAuth, AuthenticatedApiHandler } from '@/lib/authUtils'; // Import withAuth
+import Item from '@/models/Item';
+import { withAuth, AuthenticatedApiHandler } from '@/lib/authUtils';
 
-const postItemHandler: AuthenticatedApiHandler = async (req, { userId }) => {
+const postItemHandler: AuthenticatedApiHandler = async (req) => {
   await dbConnect();
 
-  // userId is available from withAuth HOC if needed for logging or ownership
-  // For now, item creation is not tied to a specific user in the model
 
   try {
     const { namaBarang, stokAwal } = await req.json();
@@ -26,11 +24,9 @@ const postItemHandler: AuthenticatedApiHandler = async (req, { userId }) => {
         );
     }
 
-    // stokSaatIni will be set by the pre-save hook in Item model
     const newItem = new Item({
       namaBarang,
       stokAwal,
-      // stokSaatIni is handled by pre-save hook if stokAwal is provided
     });
 
     await newItem.save();
@@ -39,15 +35,15 @@ const postItemHandler: AuthenticatedApiHandler = async (req, { userId }) => {
       { message: 'Item created successfully.', item: newItem },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) { // Changed any to unknown
     console.error('Create item error:', error);
-    if (error.code === 11000) { // Duplicate key error (e.g. unique namaBarang)
+    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 11000) { 
         return NextResponse.json(
             { message: 'Item with this name already exists.' },
             { status: 409 }
         );
     }
-    if (error.name === 'ValidationError') {
+    if (error instanceof Error && error.name === 'ValidationError') {
       return NextResponse.json(
         { message: error.message },
         { status: 400 }
@@ -60,10 +56,9 @@ const postItemHandler: AuthenticatedApiHandler = async (req, { userId }) => {
   }
 };
 
-const getItemHandler: AuthenticatedApiHandler = async (req, { userId }) => {
+const getItemHandler: AuthenticatedApiHandler = async () => { // Removed req and userId
   await dbConnect();
 
-  // userId is available if needed
 
   try {
     const items = await Item.find({}).sort({ createdAt: -1 });

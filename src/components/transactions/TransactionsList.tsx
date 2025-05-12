@@ -6,7 +6,7 @@ import Link from 'next/link'; // Import Link
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 interface TransactionsListProps {
-  refreshKey?: number; // Used to trigger re-fetch
+  refreshKey?: number; 
 }
 
 export default function TransactionsList({ refreshKey }: TransactionsListProps) {
@@ -19,15 +19,15 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetchWithAuth('/api/transactions'); // Use fetchWithAuth
+        const response = await fetchWithAuth('/api/transactions');
         if (!response.ok) {
           const data = await response.json();
           throw new Error(data.message || 'Failed to fetch transactions');
         }
         const data = await response.json();
         setTransactions(data.transactions || []);
-      } catch (err: any) {
-        setError(err.message || 'An unexpected error occurred.');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
         setTransactions([]);
       } finally {
         setIsLoading(false);
@@ -96,7 +96,9 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
                 <td className={tdTextMuted}>{tx.noSJ}</td>
                 <td className={tdTextMuted}>{tx.noInv}</td>
                 <td className={tdTextEmphasized}>
-                  {(tx.item as any)?.namaBarang || tx.namaBarangSnapshot || 'N/A'}
+                  {typeof tx.item === 'object' && tx.item !== null && 'namaBarang' in tx.item
+                    ? tx.item.namaBarang
+                    : tx.namaBarangSnapshot || 'N/A'}
                 </td>
                 <td className={`${tdTextMuted} text-right`}>{tx.berat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td className={`${tdTextMuted} text-right`}>{tx.harga.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</td>
@@ -118,8 +120,8 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
                           }
                           setTransactions(prev => prev.filter(t => t._id !== tx._id));
                           alert('Transaksi berhasil dihapus.');
-                        } catch (err: any) {
-                          alert(`Error: ${err.message}`);
+                        } catch (err: unknown) { 
+                          alert(`Error: ${err instanceof Error ? err.message : 'An unknown error occurred.'}`);
                         }
                       }
                     }}

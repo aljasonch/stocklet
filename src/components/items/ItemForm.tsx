@@ -49,8 +49,8 @@ export default function ItemForm({ onItemAdded }: ItemFormProps) {
       setNamaBarang('');
       setStokAwal('');
       onItemAdded();
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+    } catch (err: unknown) { 
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setIsLoading(false);
     }

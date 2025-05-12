@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
-import Transaction, { ITransaction } from '@/models/Transaction';
+import Transaction from '@/models/Transaction'; 
 import { TransactionType } from '@/types/enums';
 import Item, { IItem } from '@/models/Item';
-import User, { IUser } from '@/models/User'; // Import IUser along with User model
+import { IUser } from '@/models/User'; 
 import { withAuth, AuthenticatedApiHandler } from '@/lib/authUtils';
 
 const postHandler: AuthenticatedApiHandler = async (req, { userId }) => {
@@ -15,10 +15,10 @@ const postHandler: AuthenticatedApiHandler = async (req, { userId }) => {
       tanggal,
       tipe,
       customer,
-      noSJ, // Changed from noSJInv
-      noInv, // New field
+      noSJ, 
+      noInv, 
       noPO,
-      itemId, // Expecting itemId from client
+      itemId, 
       berat,
       harga,
       noSJSby,
@@ -51,16 +51,16 @@ const postHandler: AuthenticatedApiHandler = async (req, { userId }) => {
       tanggal,
       tipe,
       customer,
-      noSJ, // Changed
-      noInv, // New
+      noSJ, 
+      noInv, 
       noPO,
       item: itemId,
-      namaBarangSnapshot: item.namaBarang, // Store current item name
+      namaBarangSnapshot: item.namaBarang, 
       berat,
       harga,
       totalHarga, 
       noSJSby,
-      createdBy: userId, // Use actual userId from token
+      createdBy: userId, 
     });
 
     await newTransaction.save();
@@ -69,9 +69,9 @@ const postHandler: AuthenticatedApiHandler = async (req, { userId }) => {
       { message: 'Transaction created successfully.', transaction: newTransaction },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Create transaction error:', error);
-    if (error.name === 'ValidationError') {
+    if (error instanceof Error && error.name === 'ValidationError') {
       return NextResponse.json({ message: error.message }, { status: 400 });
     }
     return NextResponse.json(
@@ -81,15 +81,13 @@ const postHandler: AuthenticatedApiHandler = async (req, { userId }) => {
   }
 };
 
-const getHandler: AuthenticatedApiHandler = async (req, { userId }) => {
+const getHandler: AuthenticatedApiHandler = async () => { // Removed req and userId
   await dbConnect();
 
   try {
-    // Optionally filter transactions by userId if needed, e.g., if transactions are user-specific
-    // For now, fetching all transactions, assuming admin/shared view
     const transactions = await Transaction.find({}) 
       .populate<{item: IItem}>('item', 'namaBarang')
-      .populate<{createdBy: IUser}>('createdBy', 'email') // Use IUser interface for type
+      .populate<{createdBy: IUser}>('createdBy', 'email') 
       .sort({ tanggal: -1, createdAt: -1 }); 
 
     return NextResponse.json({ transactions }, { status: 200 });

@@ -12,7 +12,7 @@ export function getUserIdFromToken(req: NextRequest): string | null {
     return null;
   }
 
-  const token = authHeader.substring(7); // Remove "Bearer " prefix
+  const token = authHeader.substring(7); 
   if (!token) {
     return null;
   }
@@ -25,20 +25,19 @@ export function getUserIdFromToken(req: NextRequest): string | null {
     return null;
   }
 }
+type RouteParams = Record<string, string | string[]>;
 
-// Helper to create a wrapper for API routes that require authentication
-export type AuthenticatedApiHandler = (
+export type AuthenticatedApiHandler<P = RouteParams> = (
   req: NextRequest,
-  context: { params?: any; userId: string } // Add userId to context
+  context: { params?: P; userId: string } 
 ) => Promise<Response> | Response;
 
-export function withAuth(handler: AuthenticatedApiHandler) {
-  return async (req: NextRequest, context: { params?: any }) => {
+export function withAuth<P = RouteParams>(handler: AuthenticatedApiHandler<P>) {
+  return async (req: NextRequest, context: { params?: P }) => { // Use generic P
     const userId = getUserIdFromToken(req);
     if (!userId) {
       return new Response(JSON.stringify({ message: 'Unauthorized: Invalid or missing token.' }), { status: 401 });
     }
-    // Add userId to the context passed to the handler
     const newContext = { ...context, userId };
     return handler(req, newContext);
   };

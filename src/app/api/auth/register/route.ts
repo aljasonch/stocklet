@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   if (process.env.NEXT_PUBLIC_REGISTRATION_ENABLED !== 'true') {
     return NextResponse.json(
       { message: 'Registration is currently disabled.' },
-      { status: 403 } // Forbidden
+      { status: 403 } 
     );
   }
 
@@ -23,7 +23,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Basic password validation (e.g., minimum length)
     if (password.length < 6) {
       return NextResponse.json(
         { message: 'Password must be at least 6 characters long.' },
@@ -35,7 +34,7 @@ export async function POST(req: NextRequest) {
     if (existingUser) {
       return NextResponse.json(
         { message: 'User with this email already exists.' },
-        { status: 409 } // Conflict
+        { status: 409 } 
       );
     }
 
@@ -57,12 +56,11 @@ export async function POST(req: NextRequest) {
           email: newUser.email,
         },
       },
-      { status: 201 } // Created
+      { status: 201 } 
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Registration error:', error);
-    // Handle Mongoose validation errors specifically if needed
-    if (error.name === 'ValidationError') {
+    if (error instanceof Error && error.name === 'ValidationError') {
       return NextResponse.json(
         { message: error.message },
         { status: 400 }

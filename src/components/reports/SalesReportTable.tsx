@@ -55,7 +55,7 @@ export default function SalesReportTable({ reportData, isLoading, error }: Sales
               <th scope="col" className={thClasses}>No.SJ SBY</th>
             </tr>
           </thead>
-          <tbody className="bg-[color:var(--card-bg)] divide-y divide-[color:var(--border-color)]">{ // <--- Move { here
+          <tbody className="bg-[color:var(--card-bg)] divide-y divide-[color:var(--border-color)]">{
               reportData.map((tx) => (
                 <tr key={tx._id as string} className="hover:bg-[color:var(--background)] transition-colors duration-150">
                   <td className={tdTextMuted}>{new Date(tx.tanggal).toLocaleDateString('id-ID')}</td>
@@ -63,7 +63,9 @@ export default function SalesReportTable({ reportData, isLoading, error }: Sales
                   <td className={tdTextMuted}>{tx.noSJ}</td>
                   <td className={tdTextMuted}>{tx.noInv}</td>
                   <td className={tdTextEmphasized}>
-                    {(tx.item as any)?.namaBarang || tx.namaBarangSnapshot || 'N/A'}
+                    {typeof tx.item === 'object' && tx.item !== null && 'namaBarang' in tx.item 
+                      ? tx.item.namaBarang 
+                      : tx.namaBarangSnapshot || 'N/A'}
                   </td>
                   <td className={`${tdTextMuted} text-right`}>{tx.berat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td className={`${tdTextMuted} text-right`}>{tx.harga.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</td>
@@ -77,9 +79,9 @@ export default function SalesReportTable({ reportData, isLoading, error }: Sales
             <tr>
               <td colSpan={5} className={`${tfootTdClasses} text-left`}>Total Keseluruhan</td>
               <td className={`${tfootTdClasses} text-right`}>{totalBerat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg</td>
-              <td className={tfootTdClasses}>{null}</td> {/* This cell is intentionally blank for alignment */}
+              <td className={tfootTdClasses}>{null}</td>
               <td className={`${tfootTdClasses} text-right`}>{totalNilai.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</td>
-              <td colSpan={2} className={tfootTdClasses}>{null}</td> {/* These cells are intentionally blank for alignment */}
+              <td colSpan={2} className={tfootTdClasses}>{null}</td>
             </tr>
           </tfoot>
         </table>

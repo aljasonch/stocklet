@@ -26,8 +26,8 @@ export default function ItemsList({ initialItems, refreshKey }: ItemsListProps) 
         }
         const data = await response.json();
         setItems(data.items || []);
-      } catch (err: any) {
-        setError(err.message || 'An unexpected error occurred.');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
         setItems([]);
       } finally {
         setIsLoading(false);
@@ -40,7 +40,7 @@ export default function ItemsList({ initialItems, refreshKey }: ItemsListProps) 
     } else {
       fetchItems();
     }
-  }, [refreshKey, initialItems]);
+  }, [refreshKey, initialItems, items.length]); 
 
   const themedTextMuted = "text-center text-[color:var(--foreground)] opacity-75";
   const themedTextError = "text-center text-red-600";
@@ -62,9 +62,9 @@ export default function ItemsList({ initialItems, refreshKey }: ItemsListProps) 
   return (
     <div className={`mt-6 bg-[color:var(--card-bg)] shadow-lg overflow-hidden sm:rounded-lg border border-[color:var(--border-color)] transition-opacity duration-500 ease-in-out ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
       <ul role="list" className="divide-y divide-[color:var(--border-color)]">
-        {items.map((item, index) => (
-          <li 
-            key={item._id as string} 
+        {items.map((item) => (
+          <li
+            key={item._id as string}
             className="px-4 py-5 sm:px-6  transition-colors duration-150 ease-in-out"
           >
             <div className="flex items-center justify-between">
@@ -101,8 +101,8 @@ export default function ItemsList({ initialItems, refreshKey }: ItemsListProps) 
                         }
                         setItems(prev => prev.filter(i => i._id !== item._id));
                         alert('Barang berhasil dihapus.');
-                      } catch (err: any) {
-                        alert(`Error: ${err.message}`);
+                      } catch (err: unknown) {
+                        alert(`Error: ${err instanceof Error ? err.message : 'An unknown error occurred.'}`);
                       }
                     }
                   }}
@@ -137,8 +137,8 @@ export default function ItemsList({ initialItems, refreshKey }: ItemsListProps) 
                       const updatedItemData = await response.json();
                       setItems(prev => prev.map(i => i._id === item._id ? updatedItemData.item : i));
                       alert('Stok berhasil disesuaikan.');
-                    } catch (err: any) {
-                      alert(`Error: ${err.message}`);
+                    } catch (err: unknown) {
+                      alert(`Error: ${err instanceof Error ? err.message : 'An unknown error occurred.'}`);
                     }
                   }}
                   className="text-[color:var(--primary)] cursor-pointer hover:opacity-75 font-medium transition-colors duration-150"

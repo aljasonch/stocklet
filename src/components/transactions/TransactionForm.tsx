@@ -125,8 +125,8 @@ export default function TransactionForm({ onTransactionAdded, isEditMode = false
         setBerat(''); setHarga(''); setNoSJSby('');
       }
       onTransactionAdded();
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
     }

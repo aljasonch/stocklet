@@ -1,11 +1,21 @@
 'use client';
 
 import { IItem } from '@/models/Item';
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+
+interface FilterState {
+  view: 'monthly' | 'overall' | 'custom_range';
+  year?: string;
+  month?: string;
+  customer?: string;
+  itemId?: string;
+  startDate?: string;
+  endDate?: string;
+}
 
 interface SalesReportFiltersProps {
-  onFilterChange: (filters: any) => void;
-  items: IItem[]; // Pass items for the dropdown
+  onFilterChange: (filters: FilterState) => void;
+  items: IItem[];
   isLoadingItems: boolean;
 }
 
@@ -21,26 +31,24 @@ export default function SalesReportFilters({ onFilterChange, items, isLoadingIte
 
   const handleApplyFilters = (event?: FormEvent<HTMLFormElement>) => {
     if (event) event.preventDefault();
-    const filters: any = { view };
+    // Initialize filters with the correct type, ensuring view is always present
+    const filters: FilterState = { view }; 
     if (view === 'monthly') {
-      if (year && month) { // Specific month and year selected
+      if (year && month) {
         filters.year = year;
         filters.month = month;
-      } else if (year) { // Only year is selected (month is "Semua Bulan")
+      } else if (year) { 
         filters.year = year;
-        // Backend will handle year-only filter if month is not provided
       }
     } else if (view === 'custom_range') {
       if (startDate && endDate) {
         filters.startDate = startDate;
         filters.endDate = endDate;
       }
-      // If custom_range is selected but dates are missing, no date filter is applied from this block
     } else if (view === 'overall') {
-      if (year) { // If a specific year is selected for the "overall" view
+      if (year) { 
         filters.year = year;
       }
-      // If year is "Semua Tahun" (empty string) for overall, no year/month filter is sent.
     }
 
     if (customer) filters.customer = customer;
@@ -49,11 +57,9 @@ export default function SalesReportFilters({ onFilterChange, items, isLoadingIte
     onFilterChange(filters);
   };
   
-  // Apply filters on initial mount with default values
   useEffect(() => {
     handleApplyFilters();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run once on mount
+  }, []); 
 
   const years = Array.from({ length: 10 }, (_, i) => currentYear - i); // Last 10 years
   const formElementStyles = "appearance-none block w-full px-3 py-2.5 border border-[color:var(--border-color)] rounded-md shadow-sm placeholder-[color:var(--foreground)] placeholder-opacity-50 focus:outline-none focus:ring-2 focus:ring-[color:var(--primary)] focus:border-[color:var(--primary)] sm:text-sm bg-[color:var(--card-bg)] text-[color:var(--foreground)] transition-all duration-150 ease-in-out";
@@ -62,10 +68,15 @@ export default function SalesReportFilters({ onFilterChange, items, isLoadingIte
   return (
     <form onSubmit={handleApplyFilters} className="bg-[color:var(--card-bg)] p-6 sm:p-8 rounded-lg shadow-lg border border-[color:var(--border-color)] space-y-6">
       <h3 className="text-xl font-semibold leading-7 text-[color:var(--foreground)]">Filter Laporan Penjualan</h3>
-      
+
       <div>
         <label htmlFor="view" className={labelStyles}>Tampilan Laporan</label>
-        <select id="view" value={view} onChange={(e) => setView(e.target.value as any)} className={formElementStyles}>
+        <select 
+          id="view" 
+          value={view} 
+          onChange={(e: ChangeEvent<HTMLSelectElement>) => setView(e.target.value as FilterState['view'])} 
+          className={formElementStyles}
+        >
           <option value="overall">Keseluruhan (Default: Tahun Ini)</option>
           <option value="monthly">Per Bulan</option>
           <option value="custom_range">Rentang Tanggal Kustom</option>

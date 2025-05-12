@@ -1,20 +1,39 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server'; 
 import dbConnect from '@/lib/dbConnect';
-import Transaction, { ITransaction } from '@/models/Transaction'; // TransactionType was removed from here
-import { TransactionType } from '@/types/enums'; // Correct: Import TransactionType from enums
-import Item, { IItem } from '@/models/Item';
+import Transaction from '@/models/Transaction';
+import { TransactionType } from '@/types/enums'; 
+import { IItem } from '@/models/Item';
 import mongoose from 'mongoose';
 import * as XLSX from 'xlsx'; // SheetJS
 import { withAuth, AuthenticatedApiHandler } from '@/lib/authUtils';
 
-const getExportSalesHandler: AuthenticatedApiHandler = async (req, { userId }) => {
+interface SalesMatchQuery {
+  tipe: TransactionType;
+  tanggal?: { $gte: Date; $lte: Date };
+  customer?: { $regex: RegExp };
+  item?: mongoose.Types.ObjectId;
+}
+
+interface SheetRow {
+  'Tanggal': string | 'TOTAL';
+  'Customer': string;
+  'No. SJ': string;
+  'No. Inv': string;
+  'No.PO': string;
+  'Barang': string;
+  'Berat (kg)': number | undefined | null; 
+  'Harga': number | undefined | null; 
+  'Total Harga': number | undefined | null; 
+  'No.SJ SBY': string;
+}
+
+
+const getExportSalesHandler: AuthenticatedApiHandler = async (req) => {
   await dbConnect();
 
-  // userId is available if export needs to be user-specific
 
   try {
     const { searchParams } = new URL(req.url);
-    // --- Re-use filter logic from sales report API ---
     const month = searchParams.get('month');
     const year = searchParams.get('year');
     const customer = searchParams.get('customer');
@@ -23,7 +42,7 @@ const getExportSalesHandler: AuthenticatedApiHandler = async (req, { userId }) =
     const endDate = searchParams.get('endDate');
     const view = searchParams.get('view');
 
-    let matchQuery: any = { tipe: TransactionType.PENJUALAN };
+    const matchQuery: SalesMatchQuery = { tipe: TransactionType.PENJUALAN };
 
     if (view === 'monthly' && year && month) {
       const firstDay = new Date(parseInt(year), parseInt(month) - 1, 1);
@@ -47,23 +66,21 @@ const getExportSalesHandler: AuthenticatedApiHandler = async (req, { userId }) =
     if (itemId && mongoose.Types.ObjectId.isValid(itemId)) {
       matchQuery.item = new mongoose.Types.ObjectId(itemId);
     }
-    // --- End of filter logic ---
 
     const salesData = await Transaction.find(matchQuery)
       .populate<{item: IItem}>('item', 'namaBarang')
       .sort({ tanggal: -1 })
-      .lean(); // Use .lean() for plain JS objects, good for read-only ops
+      .lean(); 
 
     if (salesData.length === 0) {
       return NextResponse.json({ message: 'No data to export for the selected filters.' }, { status: 404 });
     }
 
-    // Prepare data for Excel
-    const dataForSheet = salesData.map(tx => ({
+    const dataForSheet: SheetRow[] = salesData.map(tx => ({ 
       'Tanggal': new Date(tx.tanggal).toLocaleDateString(),
       'Customer': tx.customer,
-      'No. SJ': tx.noSJ, // Changed
-      'No. Inv': tx.noInv, // New
+      'No. SJ': tx.noSJ || '', 
+      'No. Inv': tx.noInv || '',
       'No.PO': tx.noPO || '',
       'Barang': (tx.item as IItem)?.namaBarang || tx.namaBarangSnapshot || 'N/A',
       'Berat (kg)': tx.berat,
@@ -71,30 +88,26 @@ const getExportSalesHandler: AuthenticatedApiHandler = async (req, { userId }) =
       'Total Harga': tx.totalHarga,
       'No.SJ SBY': tx.noSJSby || '',
     }));
-    
-    // Calculate totals for a summary row (optional)
+
     const totalBerat = salesData.reduce((sum, tx) => sum + tx.berat, 0);
     const totalNilai = salesData.reduce((sum, tx) => sum + tx.totalHarga, 0);
 
-    // Define an empty row structure matching the expected type for dataForSheet
-    // Use undefined for numeric fields that should be empty in this row.
-    const emptyRowForSheet = {
-      'Tanggal': '', 'Customer': '', 'No. SJ': '', 'No. Inv': '', 'No.PO': '', 
-      'Barang': '', 'Berat (kg)': undefined as number | undefined, 'Harga': undefined as number | undefined, 
-      'Total Harga': undefined as number | undefined, 'No.SJ SBY': ''
+    const emptyRowForSheet: SheetRow = {
+      'Tanggal': '', 'Customer': '', 'No. SJ': '', 'No. Inv': '', 'No.PO': '',
+      'Barang': '', 'Berat (kg)': null, 'Harga': null,
+      'Total Harga': null, 'No.SJ SBY': ''
     };
-    // We cast dataForSheet to any[] before pushing these special rows to bypass strict type checking for these rows.
-    (dataForSheet as any[]).push(emptyRowForSheet); 
+    dataForSheet.push(emptyRowForSheet);
 
-    (dataForSheet as any[]).push({
+    dataForSheet.push({
         'Tanggal': 'TOTAL',
         'Customer': '',
-        'No. SJ': '', // Changed
-        'No. Inv': '', // New
+        'No. SJ': '', 
+        'No. Inv': '', 
         'No.PO': '',
         'Barang': '',
         'Berat (kg)': totalBerat,
-        'Harga': undefined, // Price per kg is not summed
+        'Harga': null,
         'Total Harga': totalNilai,
         'No.SJ SBY': '',
     });
@@ -104,18 +117,17 @@ const getExportSalesHandler: AuthenticatedApiHandler = async (req, { userId }) =
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Laporan Penjualan');
 
-    // Set column widths (optional, but improves readability)
     const columnWidths = [
-        { wch: 12 }, // Tanggal
-        { wch: 25 }, // Customer
-        { wch: 15 }, // No. SJ
-        { wch: 15 }, // No. Inv
-        { wch: 15 }, // No.PO
-        { wch: 30 }, // Barang
-        { wch: 12 }, // Berat (kg)
-        { wch: 15 }, // Harga
-        { wch: 18 }, // Total Harga
-        { wch: 15 }, // No.SJ SBY
+        { wch: 12 },
+        { wch: 25 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 30 },
+        { wch: 12 },
+        { wch: 15 }, 
+        { wch: 18 }, 
+        { wch: 15 }, 
     ];
     worksheet['!cols'] = columnWidths;
 

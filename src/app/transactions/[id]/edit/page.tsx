@@ -10,7 +10,7 @@ import { fetchWithAuth } from '@/lib/fetchWithAuth'; // Import fetchWithAuth
 export default function EditTransactionPage() {
   const router = useRouter();
   const params = useParams();
-  const id = params?.id as string; // Get ID from route params
+  const id = params?.id as string;
 
   const [transaction, setTransaction] = useState<ITransaction | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,15 +22,15 @@ export default function EditTransactionPage() {
         setIsLoading(true);
         setError(null);
         try {
-          const response = await fetchWithAuth(`/api/transactions/${id}`); // Use fetchWithAuth
+          const response = await fetchWithAuth(`/api/transactions/${id}`);
           if (!response.ok) {
             const data = await response.json();
             throw new Error(data.message || 'Failed to fetch transaction data.');
           }
           const data = await response.json();
           setTransaction(data.transaction);
-        } catch (err: any) {
-          setError(err.message);
+        } catch (err: unknown) {
+          setError(err instanceof Error ? err.message : 'An unknown error occurred');
         } finally {
           setIsLoading(false);
         }
@@ -43,7 +43,6 @@ export default function EditTransactionPage() {
   }, [id]);
 
   const handleTransactionUpdated = () => {
-    // Redirect to transactions list or show success message
     router.push('/transactions'); 
   };
 
@@ -84,7 +83,7 @@ export default function EditTransactionPage() {
         <p className="text-sm text-gray-600">ID Transaksi: {id}</p>
       </header>
       <TransactionForm
-        onTransactionAdded={handleTransactionUpdated} // Re-use for "updated"
+        onTransactionAdded={handleTransactionUpdated}
         isEditMode={true}
         initialData={transaction}
       />
