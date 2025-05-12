@@ -1,7 +1,7 @@
 'use client';
 
 import { IItem } from '@/models/Item';
-import { useState, useEffect, FormEvent, ChangeEvent, useCallback } from 'react';
+import { useState, FormEvent, ChangeEvent, useCallback } from 'react';
 
 interface FilterState {
   view: 'monthly' | 'overall' | 'custom_range';
