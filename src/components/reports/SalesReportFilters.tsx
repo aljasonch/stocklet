@@ -55,44 +55,6 @@ export default function SalesReportFilters({ onFilterChange, items, isLoadingIte
     
     onFilterChange(filters);
   }, [view, year, month, startDate, endDate, customer, itemId, onFilterChange]); 
-  export default function SalesReportFilters({ onFilterChange, items, isLoadingItems }: SalesReportFiltersProps) {
-  const [view, setView] = useState<'monthly' | 'overall' | 'custom_range'>('overall');
-  const currentYear = new Date().getFullYear();
-  const [year, setYear] = useState<string>(currentYear.toString());
-  const [month, setMonth] = useState<string>(''); 
-  const [customer, setCustomer] = useState('');
-  const [itemId, setItemId] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-
-  const handleApplyFilters = useCallback((event?: FormEvent<HTMLFormElement>) => {
-    if (event) event.preventDefault();
-    const filters: FilterState = { view };
-    if (view === 'monthly') {
-      if (year && month) {
-        filters.year = year;
-        filters.month = month;
-      } else if (year) {
-        filters.year = year;
-      }
-    } else if (view === 'custom_range') {
-      if (startDate && endDate) {
-        filters.startDate = startDate;
-        filters.endDate = endDate;
-      }
-    } else if (view === 'overall') {
-      if (year) {
-        filters.year = year;
-      }
-    }
-
-    if (customer) filters.customer = customer;
-    if (itemId) filters.itemId = itemId;
-
-    onFilterChange(filters);
-  }, [view, year, month, startDate, endDate, customer, itemId, onFilterChange]);
-
-  // ✅ Tambahkan ini
   useEffect(() => {
     handleApplyFilters();
     // eslint-disable-next-line react-hooks/exhaustive-deps
