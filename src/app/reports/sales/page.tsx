@@ -15,6 +15,7 @@ interface FilterState {
   itemId?: string;
   startDate?: string;
   endDate?: string;
+  noSjType?: 'all' | 'noSJ' | 'noSJSby'; // Added for No. SJ filter
 }
 
 export default function SalesReportPage() {
@@ -60,9 +61,10 @@ export default function SalesReportPage() {
     if (currentFilters.itemId) queryParams.append('itemId', currentFilters.itemId);
     if (currentFilters.startDate) queryParams.append('startDate', currentFilters.startDate);
     if (currentFilters.endDate) queryParams.append('endDate', currentFilters.endDate);
+    if (currentFilters.noSjType) queryParams.append('noSjType', currentFilters.noSjType); // Pass noSjType
 
     try {
-      const response = await fetchWithAuth(`/api/reports/sales?${queryParams.toString()}`); 
+      const response = await fetchWithAuth(`/api/reports/sales?${queryParams.toString()}`);
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.message || 'Failed to fetch sales report');
@@ -97,6 +99,7 @@ export default function SalesReportPage() {
     if (filters.itemId) queryParams.append('itemId', filters.itemId);
     if (filters.startDate) queryParams.append('startDate', filters.startDate);
     if (filters.endDate) queryParams.append('endDate', filters.endDate);
+    if (filters.noSjType) queryParams.append('noSjType', filters.noSjType); // Pass noSjType for export
 
     window.location.href = `/api/export/sales?${queryParams.toString()}`;
   };

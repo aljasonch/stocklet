@@ -32,7 +32,7 @@
       if (isMobileMenuOpen) {
         setIsMobileMenuOpen(false);
       }
-    }, [pathname, isMobileMenuOpen]); // Added isMobileMenuOpen to dependencies
+    }, [pathname]); // Corrected: Only run when pathname changes
 
 
     if (isLoading) {
@@ -81,7 +81,28 @@
               <>
                 <Link href="/items"><span className={navLinkClasses('/items')}>Stok</span></Link>
                 <Link href="/transactions"><span className={navLinkClasses('/transactions')}>Transaksi</span></Link>
-                <Link href="/reports/sales"><span className={navLinkClasses('/reports/sales')}>Laporan</span></Link>
+                <div className="relative group">
+                  <button className={`${navLinkClasses('/reports')} flex items-center`}>
+                    Laporan
+                    <svg className="ml-1 h-4 w-4 opacity-75 group-hover:opacity-100 transition-opacity" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  <div className="absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-[color:var(--card-bg)] ring-1 ring-[color:var(--border-color)] ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ease-in-out z-10">
+                    <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                      <Link href="/reports/sales">
+                        <span className={`block px-4 py-2 text-sm ${pathname === '/reports/sales' ? 'font-semibold text-[color:var(--primary)]' : 'text-[color:var(--foreground)]'} hover:bg-[color:var(--background)] hover:text-[color:var(--primary)]`} role="menuitem">
+                          Laporan Penjualan
+                        </span>
+                      </Link>
+                      <Link href="/reports/purchases">
+                        <span className={`block px-4 py-2 text-sm ${pathname === '/reports/purchases' ? 'font-semibold text-[color:var(--primary)]' : 'text-[color:var(--foreground)]'} hover:bg-[color:var(--background)] hover:text-[color:var(--primary)]`} role="menuitem">
+                          Laporan Pembelian
+                        </span>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
               </>
             )}
 
@@ -128,7 +149,9 @@
               <>
                 <Link href="/items"><span className={mobileNavLinkClasses('/items')} onClick={toggleMobileMenu}>Stok</span></Link>
                 <Link href="/transactions"><span className={mobileNavLinkClasses('/transactions')} onClick={toggleMobileMenu}>Transaksi</span></Link>
-                <Link href="/reports/sales"><span className={mobileNavLinkClasses('/reports/sales')} onClick={toggleMobileMenu}>Laporan</span></Link>
+                {/* Mobile Laporan Links - can be simple links or a collapsible section */}
+                <Link href="/reports/sales"><span className={mobileNavLinkClasses('/reports/sales')} onClick={toggleMobileMenu}>Laporan Penjualan</span></Link>
+                <Link href="/reports/purchases"><span className={mobileNavLinkClasses('/reports/purchases')} onClick={toggleMobileMenu}>Laporan Pembelian</span></Link>
               </>
             )}
 

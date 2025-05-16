@@ -37,6 +37,12 @@ export async function fetchWithAuth(
       throw new Error(errorData.message || `Request failed with status ${response.status}`);
     }
 
+    // Check for a new token in the response header and update localStorage
+    const newToken = response.headers.get('X-New-Token');
+    if (newToken && typeof window !== 'undefined') {
+      localStorage.setItem('stockletToken', newToken);
+    }
+
     return response;
   } catch (error) {
     clearTimeout(timeout);

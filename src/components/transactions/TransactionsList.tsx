@@ -1,40 +1,68 @@
 'use client';
 
 import { ITransaction } from '@/models/Transaction';
-import { useEffect, useState } from 'react';
-import Link from 'next/link'; 
+import { TransactionType } from '@/types/enums';
+import { useEffect, useState } from 'react'; // Removed useMemo
+import Link from 'next/link';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 interface TransactionsListProps {
-  refreshKey?: number; 
+  refreshKey?: number;
 }
 
+type FilterType = 'ALL' | TransactionType.PENJUALAN | TransactionType.PEMBELIAN;
+
 export default function TransactionsList({ refreshKey }: TransactionsListProps) {
-  const [transactions, setTransactions] = useState<ITransaction[]>([]);
+  const [transactions, setTransactions] = useState<ITransaction[]>([]); // This will now hold the paginated & filtered list
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filterType, setFilterType] = useState<FilterType>('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalItems, setTotalItems] = useState(0);
+  const itemsPerPage = 10; // Or make this configurable
+
+  const fetchTransactions = async (pageToFetch: number, currentFilterType: FilterType) => {
+    setIsLoading(true);
+    setError(null);
+    let url = `/api/transactions?page=${pageToFetch}&limit=${itemsPerPage}`;
+    if (currentFilterType !== 'ALL') {
+      url += `&tipe=${currentFilterType}`;
+    }
+    try {
+      const response = await fetchWithAuth(url);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch transactions');
+      }
+      const data = await response.json();
+      setTransactions(data.transactions || []);
+      setCurrentPage(data.currentPage);
+      setTotalPages(data.totalPages);
+      setTotalItems(data.totalItems);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
+      setTransactions([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchTransactions = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await fetchWithAuth('/api/transactions');
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.message || 'Failed to fetch transactions');
-        }
-        const data = await response.json();
-        setTransactions(data.transactions || []);
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
-        setTransactions([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchTransactions();
+    fetchTransactions(currentPage, filterType);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, filterType, refreshKey]); // Fetch when page, filter, or refreshKey changes
+
+  // Reset to page 1 when filterType changes or refreshKey changes
+  useEffect(() => {
+    if (refreshKey && refreshKey > 0) { // If refreshKey is used, go to page 1
+        setCurrentPage(1);
+    }
   }, [refreshKey]);
+
+  useEffect(() => {
+    setCurrentPage(1); // Reset to page 1 when filter type changes
+  }, [filterType]);
 
   const themedTextMuted = "text-center text-[color:var(--foreground)] opacity-75 py-4";
   const themedTextError = "text-center text-red-600";
@@ -49,8 +77,67 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
     </div>;
   }
 
-  if (transactions.length === 0) {
-    return <p className={themedTextMuted}>No transactions found.</p>;
+  if (isLoading && transactions.length === 0) { // Show loading only if there are no transactions yet
+    return <p className={themedTextMuted}>Loading transactions...</p>;
+  }
+
+  if (error) {
+    return <div className="p-4 my-4 bg-opacity-10 rounded-md">
+        <p className={themedTextError}>Error: {error}</p>
+    </div>;
+  }
+
+  // Show "No transactions found" only if not loading and after fetch attempt
+  if (!isLoading && transactions.length === 0) {
+    return (
+      <>
+        <div className="mb-4 flex space-x-2">
+          <button
+            onClick={() => setFilterType('ALL')} // This will trigger useEffect to reset page and fetch
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === 'ALL' ? 'bg-[color:var(--primary)] text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
+          >
+            Semua
+          </button>
+          <button
+            onClick={() => setFilterType(TransactionType.PENJUALAN)} // This will trigger useEffect
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === TransactionType.PENJUALAN ? 'bg-red-500 text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
+          >
+            Penjualan
+          </button>
+          <button
+            onClick={() => setFilterType(TransactionType.PEMBELIAN)} // This will trigger useEffect
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === TransactionType.PEMBELIAN ? 'bg-green-500 text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
+          >
+            Pembelian
+          </button>
+        </div>
+        <p className={themedTextMuted}>
+          {filterType === 'ALL' ? 'No transactions found.' : `No ${filterType.toLowerCase()} transactions found.`}
+        </p>
+        {/* Still show pagination if on a page > 1 and no items, allowing to go back */}
+        {totalPages > 1 && (
+           <div className="mt-6 flex justify-center items-center space-x-3">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1 || isLoading}
+              className="px-4 py-2 text-sm font-medium rounded-md border border-[color:var(--border-color)] bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <span className="text-sm text-[color:var(--foreground)]">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages || isLoading}
+              className="px-4 py-2 text-sm font-medium rounded-md border border-[color:var(--border-color)] bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </>
+    );
   }
 
   const thClasses = "px-6 py-3 text-left text-xs font-medium text-[color:var(--foreground)] opacity-75 uppercase tracking-wider";
@@ -60,10 +147,31 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
 
 
   return (
-    <div className={`mt-6 bg-[color:var(--card-bg)] shadow-lg overflow-hidden sm:rounded-lg border border-[color:var(--border-color)] transition-opacity duration-500 ease-in-out ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-[color:var(--border-color)]">
-          <thead className="bg-[color:var(--background)]">
+    <div className={`mt-6 transition-opacity duration-500 ease-in-out ${isLoading && transactions.length === 0 ? 'opacity-0' : 'opacity-100'}`}>
+      <div className="mb-4 flex space-x-2">
+        <button
+          onClick={() => setFilterType('ALL')} // This will trigger useEffect to reset page and fetch
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === 'ALL' ? 'bg-[color:var(--primary)] text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
+        >
+          Semua
+        </button>
+        <button
+          onClick={() => setFilterType(TransactionType.PENJUALAN)}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === TransactionType.PENJUALAN ? 'bg-red-500 text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
+        >
+          Penjualan
+        </button>
+        <button
+          onClick={() => setFilterType(TransactionType.PEMBELIAN)}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === TransactionType.PEMBELIAN ? 'bg-green-500 text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
+        >
+          Pembelian
+        </button>
+      </div>
+      <div className={`bg-[color:var(--card-bg)] shadow-lg overflow-hidden sm:rounded-lg border border-[color:var(--border-color)]`}>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-[color:var(--border-color)]">
+            <thead className="bg-[color:var(--background)]">
             <tr>
               <th scope="col" className={thClasses}>Tanggal</th>
               <th scope="col" className={thClasses}>Tipe</th>
@@ -80,7 +188,7 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
             </tr>
           </thead>
           <tbody className="bg-[color:var(--card-bg)] divide-y divide-[color:var(--border-color)]">
-            {transactions.map((tx) => (
+            {transactions.map((tx) => ( // Use transactions directly as it's now filtered and paginated from API
               <tr key={tx._id as string} className="hover:bg-[color:var(--background)] transition-colors duration-150">
                 <td className={tdTextMuted}>{new Date(tx.tanggal).toLocaleDateString('id-ID')}</td>
                 <td className={`${tdBaseClasses}`}>
@@ -136,5 +244,28 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
         </table>
       </div>
     </div>
+
+    {totalPages > 0 && (
+      <div className="mt-6 flex justify-center items-center space-x-3">
+        <button
+          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+          disabled={currentPage === 1 || isLoading}
+          className="px-4 py-2 text-sm font-medium rounded-md border border-[color:var(--border-color)] bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Previous
+        </button>
+        <span className="text-sm text-[color:var(--foreground)]">
+          Page {currentPage} of {totalPages} (Total: {totalItems})
+        </span>
+        <button
+          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+          disabled={currentPage === totalPages || isLoading}
+          className="px-4 py-2 text-sm font-medium rounded-md border border-[color:var(--border-color)] bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Next
+        </button>
+      </div>
+    )}
+  </div>
   );
 }

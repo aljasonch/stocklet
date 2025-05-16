@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     const token = jwt.sign(
       { userId: user._id, email: user.email },
       process.env.JWT_SECRET!, // Ensure JWT_SECRET is set in .env
-      { expiresIn: '1h' } // Token expires in 1 hour
+      { expiresIn: '15m' } // Token expires in 15 minutes
     );
 
     const response = NextResponse.json(

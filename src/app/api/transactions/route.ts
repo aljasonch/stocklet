@@ -1,10 +1,11 @@
 import { NextResponse, NextRequest } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
-import Transaction from '@/models/Transaction';
+import Transaction, { ITransaction } from '@/models/Transaction'; // Import ITransaction
 import { TransactionType } from '@/types/enums';
 import Item, { IItem } from '@/models/Item';
 import { IUser } from '@/models/User';
 import { withAuthStatic, getUserIdFromToken } from '@/lib/authUtils';
+import mongoose from 'mongoose'; // Import mongoose
 
 const postHandler = async (req: NextRequest) => {
   await dbConnect();
@@ -90,12 +91,39 @@ const getHandler = async (req: NextRequest) => {
   await dbConnect();
 
   try {
-    const transactions = await Transaction.find({})
-      .populate<{item: IItem}>('item', 'namaBarang')
-      .populate<{createdBy: IUser}>('createdBy', 'email')
-      .sort({ tanggal: -1, createdAt: -1 });
+    const userId = getUserIdFromToken(req);
+    if (!userId) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
 
-    return NextResponse.json({ transactions }, { status: 200 });
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const skip = (page - 1) * limit;
+    const tipe = searchParams.get('tipe') as TransactionType | null;
+
+    // Base query includes user filtering
+    const queryOptions: mongoose.FilterQuery<ITransaction> = { createdBy: userId };
+
+    if (tipe && Object.values(TransactionType).includes(tipe)) {
+      queryOptions.tipe = tipe;
+    }
+
+    const transactions = await Transaction.find(queryOptions)
+      .populate<{item: IItem}>('item', 'namaBarang')
+      .sort({ tanggal: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalTransactions = await Transaction.countDocuments(queryOptions);
+    const totalPages = Math.ceil(totalTransactions / limit);
+
+    return NextResponse.json({
+      transactions,
+      currentPage: page,
+      totalPages,
+      totalItems: totalTransactions
+    }, { status: 200 });
   } catch (error) {
     console.error('Get transactions error:', error);
     return NextResponse.json(
