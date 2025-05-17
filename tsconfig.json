@@ -36,6 +36,6 @@
   ],
   "exclude": [
     "node_modules",
-    ".next/types" // Exclude generated types from tsc check as a workaround
+    // ".next/types" // Exclude generated types from tsc check as a workaround
   ]
 }

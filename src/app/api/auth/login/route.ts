@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken'; // Import jsonwebtoken
+import jwt from 'jsonwebtoken';
+import { randomUUID } from 'crypto'; // For JTI
+
+const JWT_ISSUER = 'stocklet-app';
+const JWT_AUDIENCE = 'stocklet-users';
+const JWT_EXPIRY = '15m'; // For token payload
+const COOKIE_MAX_AGE = 15 * 60; // 15 minutes in seconds for cookie
 
 export async function POST(req: NextRequest) {
   await dbConnect();
@@ -42,32 +48,43 @@ export async function POST(req: NextRequest) {
     //   { expiresIn: '1h' }
     // );
 
+    const jti = randomUUID();
+    const tokenPayload = {
+      userId: user._id,
+      email: user.email,
+      jti, // JWT ID
+    };
+
     const token = jwt.sign(
-      { userId: user._id, email: user.email },
-      process.env.JWT_SECRET!, // Ensure JWT_SECRET is set in .env
-      { expiresIn: '1h' } // Token expires in 1 hour
+      tokenPayload,
+      process.env.JWT_SECRET!,
+      { 
+        expiresIn: JWT_EXPIRY,
+        issuer: JWT_ISSUER,
+        audience: JWT_AUDIENCE,
+      }
     );
 
+    // Instead of sending token in body, set it in an HttpOnly cookie
     const response = NextResponse.json(
       {
         message: 'Login successful.',
         user: {
           id: user._id,
           email: user.email,
-        },
-        token, // Send token to client
+        }
+        // Token is no longer sent in the body
       },
       { status: 200 }
     );
 
-    // Optionally, set token in an httpOnly cookie for better security
-    // response.cookies.set('token', token, { 
-    //   httpOnly: true, 
-    //   secure: process.env.NODE_ENV === 'production', 
-    //   sameSite: 'strict', 
-    //   maxAge: 3600, // 1 hour
-    //   path: '/',
-    // });
+    response.cookies.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax', // Using 'lax' is a common recommendation
+      maxAge: COOKIE_MAX_AGE, 
+      path: '/',
+    });
 
     return response;
   } catch (error) {

@@ -1,20 +1,21 @@
-import { NextResponse, NextRequest } from 'next/server';
+import { NextRequest } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
-import Transaction from '@/models/Transaction';
+import Transaction, { ITransaction } from '@/models/Transaction';
 import { TransactionType } from '@/types/enums';
 import Item, { IItem } from '@/models/Item';
-import { IUser } from '@/models/User';
-import { withAuthStatic, getUserIdFromToken } from '@/lib/authUtils';
+import { withAuthStatic, HandlerResult } from '@/lib/authUtils';
+import mongoose from 'mongoose'; 
 
-const postHandler = async (req: NextRequest) => {
+const postHandler = async (
+  req: NextRequest,
+  context: { params: Record<string, never> },
+  userId: string,
+  _userEmail: string,
+  _jti: string
+): Promise<HandlerResult> => {
   await dbConnect();
 
   try {
-    const userId = getUserIdFromToken(req);
-    if (!userId) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = await req.json();
     const {
       tanggal,
@@ -29,25 +30,24 @@ const postHandler = async (req: NextRequest) => {
       noSJSby,
     } = body;
 
-    // Basic validation
     if (!tanggal || !tipe || !customer || !itemId || typeof berat === 'undefined' || typeof harga === 'undefined') {
-      return NextResponse.json({ message: 'Missing required fields (tanggal, tipe, customer, itemId, berat, harga).' }, { status: 400 });
+      return { status: 400, error: 'Missing required fields (tanggal, tipe, customer, itemId, berat, harga).' };
     }
 
     if (!Object.values(TransactionType).includes(tipe as TransactionType)) {
-        return NextResponse.json({ message: 'Invalid transaction type.' }, { status: 400 });
+        return { status: 400, error: 'Invalid transaction type.' };
     }
 
     const item = await Item.findById(itemId);
     if (!item) {
-      return NextResponse.json({ message: 'Item not found.' }, { status: 404 });
+      return { status: 404, error: 'Item not found.' };
     }
 
     if (tipe === TransactionType.PENJUALAN && item.stokSaatIni < berat) {
-      return NextResponse.json(
-        { message: `Stok tidak mencukupi untuk ${item.namaBarang}. Stok saat ini: ${item.stokSaatIni} kg.` },
-        { status: 400 }
-      );
+      return { 
+        status: 400, 
+        error: `Stok tidak mencukupi untuk ${item.namaBarang}. Stok saat ini: ${item.stokSaatIni} kg.` 
+      };
     }
 
     const totalHarga = berat * harga;
@@ -70,38 +70,69 @@ const postHandler = async (req: NextRequest) => {
 
     await newTransaction.save();
 
-    return NextResponse.json(
-      { message: 'Transaction created successfully.', transaction: newTransaction },
-      { status: 201 }
-    );
+    return { 
+      status: 201, 
+      message: 'Transaction created successfully.', 
+      data: { transaction: newTransaction } 
+    };
   } catch (error: unknown) {
     console.error('Create transaction error:', error);
     if (error instanceof Error && error.name === 'ValidationError') {
-      return NextResponse.json({ message: error.message }, { status: 400 });
+      return { status: 400, error: error.message };
     }
-    return NextResponse.json(
-      { message: 'An internal server error occurred.' },
-      { status: 500 }
-    );
+    return { status: 500, error: 'An internal server error occurred.' };
   }
 };
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const getHandler = async (req: NextRequest) => {
+
+const getHandler = async (
+  req: NextRequest,
+  context: { params: Record<string, never> },
+  userId: string,
+  _userEmail: string,
+  _jti: string
+): Promise<HandlerResult> => {
   await dbConnect();
 
   try {
-    const transactions = await Transaction.find({})
-      .populate<{item: IItem}>('item', 'namaBarang')
-      .populate<{createdBy: IUser}>('createdBy', 'email')
-      .sort({ tanggal: -1, createdAt: -1 });
+    // userId is now passed by withAuthStatic
+    // if (!userId) { // This check is now done by withAuthStatic
+    //   return { status: 401, error: 'Unauthorized' };
+    // }
 
-    return NextResponse.json({ transactions }, { status: 200 });
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const skip = (page - 1) * limit;
+    const tipe = searchParams.get('tipe') as TransactionType | null;
+
+    // Base query includes user filtering
+    const queryOptions: mongoose.FilterQuery<ITransaction> = { createdBy: userId };
+
+    if (tipe && Object.values(TransactionType).includes(tipe)) {
+      queryOptions.tipe = tipe;
+    }
+
+    const transactions = await Transaction.find(queryOptions)
+      .populate<{item: IItem}>('item', 'namaBarang')
+      .sort({ tanggal: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalTransactions = await Transaction.countDocuments(queryOptions);
+    const totalPages = Math.ceil(totalTransactions / limit);
+
+    return {
+      status: 200,
+      data: {
+        transactions,
+        currentPage: page,
+        totalPages,
+        totalItems: totalTransactions
+      }
+    };
   } catch (error) {
     console.error('Get transactions error:', error);
-    return NextResponse.json(
-      { message: 'An internal server error occurred.' },
-      { status: 500 }
-    );
+    return { status: 500, error: 'An internal server error occurred.' };
   }
 };
 

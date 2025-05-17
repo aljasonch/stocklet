@@ -11,8 +11,8 @@ interface User {
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (token?: string, userData?: User) => void;
-  logout: () => void;
+  login: (userData: User) => void; // Token no longer passed here
+  logout: () => Promise<void>; // Make logout async
   user: User | null; 
 }
 
@@ -28,19 +28,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setIsLoading(true);
     try {
-      const storedToken = localStorage.getItem('stockletToken');
+      // Token is in HttpOnly cookie, cannot access directly.
+      // We rely on localStorage for user data to persist UI state.
+      // A dedicated /api/auth/me endpoint would be more robust for checking session validity.
       const storedUser = localStorage.getItem('stockletUser');
-      if (storedToken && storedUser) {
-        setIsAuthenticated(true);
-        setUser(JSON.parse(storedUser));
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        setIsAuthenticated(true); // Assume authenticated if user data exists. Actual check happens on API calls.
       } else {
         setIsAuthenticated(false);
         setUser(null);
       }
     } catch (error) {
       console.error("AuthContext useEffect error:", error);
-      localStorage.removeItem('stockletToken');
-      localStorage.removeItem('stockletUser');
+      localStorage.removeItem('stockletUser'); // Only user data in localStorage now
       setIsAuthenticated(false);
       setUser(null);
     }
@@ -56,24 +58,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [isLoading, isAuthenticated, pathname, router]);
 
-  const login = (token?: string, userData?: User) => { // Use User type
-    if (token && userData) {
-      localStorage.setItem('stockletToken', token);
+  const login = (userData: User) => { // Token is no longer passed from client-side
+    if (userData) {
+      // Token is set as HttpOnly cookie by the server.
+      // Client-side only needs to store user data for UI purposes.
       localStorage.setItem('stockletUser', JSON.stringify(userData));
-      setIsAuthenticated(true);
       setUser(userData);
+      setIsAuthenticated(true);
       router.push('/'); 
     } else {
-      console.error("Login called without token or userData");
+      // This case should ideally not happen if API guarantees userData on successful login
+      console.error("Login called without userData"); 
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('stockletToken');
-    localStorage.removeItem('stockletUser');
-    setIsAuthenticated(false);
-    setUser(null);
-    router.push('/login');
+  const logout = async () => {
+    try {
+      // Call the backend logout endpoint to blacklist token and clear cookie
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (error) {
+      console.error("Logout API call failed:", error);
+      // Still attempt to clear client-side state
+    } finally {
+      localStorage.removeItem('stockletUser'); // Only user data in localStorage now
+      setIsAuthenticated(false);
+      setUser(null);
+      router.push('/login');
+    }
   };
 
   return (

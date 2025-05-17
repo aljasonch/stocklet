@@ -11,15 +11,24 @@ interface FilterState {
   itemId?: string;
   startDate?: string;
   endDate?: string;
+  noSjType?: 'all' | 'noSJ' | 'noSJSby'; // Added for No. SJ filter
 }
 
 interface SalesReportFiltersProps {
   onFilterChange: (filters: FilterState) => void;
   items: IItem[];
   isLoadingItems: boolean;
+  customerLabel?: string; 
+  title?: string; // Added optional title prop
 }
 
-export default function SalesReportFilters({ onFilterChange, items, isLoadingItems }: SalesReportFiltersProps) {
+export default function SalesReportFilters({ 
+  onFilterChange, 
+  items, 
+  isLoadingItems, 
+  customerLabel = "Customer", 
+  title = "Filter Laporan Penjualan" // Default title
+}: SalesReportFiltersProps) {
   const [view, setView] = useState<'monthly' | 'overall' | 'custom_range'>('overall');
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState<string>(currentYear.toString());
@@ -28,10 +37,11 @@ export default function SalesReportFilters({ onFilterChange, items, isLoadingIte
   const [itemId, setItemId] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [noSjType, setNoSjType] = useState<'all' | 'noSJ' | 'noSJSby'>('all'); // State for No. SJ filter
 
   const handleApplyFilters = useCallback((event?: FormEvent<HTMLFormElement>) => {
     if (event) event.preventDefault();
-    const filters: FilterState = { view }; 
+    const filters: FilterState = { view, noSjType };
     if (view === 'monthly') {
       if (year && month) {
         filters.year = year;
@@ -52,9 +62,10 @@ export default function SalesReportFilters({ onFilterChange, items, isLoadingIte
 
     if (customer) filters.customer = customer;
     if (itemId) filters.itemId = itemId;
+    // noSjType is already part of filters initialization
     
     onFilterChange(filters);
-  }, [view, year, month, startDate, endDate, customer, itemId, onFilterChange]); 
+  }, [view, year, month, startDate, endDate, customer, itemId, noSjType, onFilterChange]);
   useEffect(() => {
     handleApplyFilters();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -66,7 +77,7 @@ export default function SalesReportFilters({ onFilterChange, items, isLoadingIte
 
   return (
     <form onSubmit={handleApplyFilters} className="bg-[color:var(--card-bg)] p-6 sm:p-8 rounded-lg shadow-lg border border-[color:var(--border-color)] space-y-6">
-      <h3 className="text-xl font-semibold leading-7 text-[color:var(--foreground)]">Filter Laporan Penjualan</h3>
+      <h3 className="text-xl font-semibold leading-7 text-[color:var(--foreground)]">{title}</h3>
 
       <div>
         <label htmlFor="view" className={labelStyles}>Tampilan Laporan</label>
@@ -124,8 +135,8 @@ export default function SalesReportFilters({ onFilterChange, items, isLoadingIte
       )}
 
       <div>
-        <label htmlFor="customer" className={labelStyles}>Customer (Nama)</label>
-        <input type="text" id="customer" value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Kosongkan untuk semua customer" className={formElementStyles} />
+        <label htmlFor="customer" className={labelStyles}>{customerLabel} (Nama)</label>
+        <input type="text" id="customer" value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder={`Kosongkan untuk semua ${customerLabel.toLowerCase()}`} className={formElementStyles} />
       </div>
 
       <div>
@@ -138,6 +149,27 @@ export default function SalesReportFilters({ onFilterChange, items, isLoadingIte
             ))}
           </select>
         )}
+      </div>
+
+      <div>
+        <label className={labelStyles}>Filter No. SJ</label>
+        <div className="mt-2 flex flex-wrap gap-y-2 gap-x-4">
+          {(['all', 'noSJ', 'noSJSby'] as const).map((type) => (
+            <label key={type} className="inline-flex items-center cursor-pointer">
+              <input
+                type="radio"
+                name="noSjType"
+                value={type}
+                checked={noSjType === type}
+                onChange={(e) => setNoSjType(e.target.value as 'all' | 'noSJ' | 'noSJSby')}
+                className="form-radio h-4 w-4 text-[color:var(--primary)] border-[color:var(--border-color)] focus:ring-[color:var(--primary)] transition duration-150 ease-in-out"
+              />
+              <span className="ml-2 text-sm text-[color:var(--foreground)] opacity-90">
+                {type === 'all' ? 'Semua' : type === 'noSJ' ? 'No. SJ (Utama)' : 'No. SJ SBY'}
+              </span>
+            </label>
+          ))}
+        </div>
       </div>
       
       <div className="pt-2">

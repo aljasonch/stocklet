@@ -1,26 +1,29 @@
-import { NextResponse, NextRequest } from 'next/server'; 
+import { NextRequest } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
-import Item from '@/models/Item';
-import { withAuthStatic } from '@/lib/authUtils';
+import Item, { IItem } from '@/models/Item';
+import Transaction from '@/models/Transaction';
+import { TransactionType } from '@/types/enums';
+import { withAuthStatic, HandlerResult } from '@/lib/authUtils';
+import mongoose, { PipelineStage } from 'mongoose';
 
-const postItemHandler = async (req: NextRequest) => {
+const postItemHandler = async (
+  req: NextRequest,
+  _context: { params: Record<string, never> }, // Add context
+  _userId: string, // Add userId
+  _userEmail: string, // Add userEmail
+  _jti: string // Add jti
+): Promise<HandlerResult> => {
   await dbConnect();
 
   try {
     const { namaBarang, stokAwal } = await req.json();
 
     if (!namaBarang || typeof stokAwal === 'undefined') {
-      return NextResponse.json(
-        { message: 'Nama barang and stok awal are required.' },
-        { status: 400 }
-      );
+      return { status: 400, error: 'Nama barang and stok awal are required.' };
     }
 
     if (typeof stokAwal !== 'number' || stokAwal < 0) {
-        return NextResponse.json(
-            { message: 'Stok awal must be a non-negative number.' },
-            { status: 400 }
-        );
+      return { status: 400, error: 'Stok awal must be a non-negative number.' };
     }
 
     const newItem = new Item({
@@ -30,43 +33,128 @@ const postItemHandler = async (req: NextRequest) => {
 
     await newItem.save();
 
-    return NextResponse.json(
-      { message: 'Item created successfully.', item: newItem },
-      { status: 201 }
-    );
-  } catch (error: unknown) { // Changed any to unknown
+    return { 
+      status: 201, 
+      message: 'Item created successfully.', 
+      data: { item: newItem } 
+    };  } catch (error: unknown) {
     console.error('Create item error:', error);
-    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 11000) { 
-        return NextResponse.json(
-            { message: 'Item with this name already exists.' },
-            { status: 409 }
-        );
+    const err = error as { code?: number; message?: string }; 
+    if (err.code === 11000) { 
+      return { status: 409, error: 'Item with this name already exists.' };
     }
-    if (error instanceof Error && error.name === 'ValidationError') {
-      return NextResponse.json(
-        { message: error.message },
-        { status: 400 }
-      );
+    if (err instanceof mongoose.Error.ValidationError) { 
+      return { status: 400, error: err.message };
     }
-    return NextResponse.json(
-      { message: 'An internal server error occurred.' },
-      { status: 500 }
-    );
+    return { status: 500, error: 'An internal server error occurred.' };
   }
 };
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const getItemHandler = async (req: NextRequest) => {
+
+const getItemHandler = async (
+  req: NextRequest,
+  _context: { params: Record<string, never> }, // Add context
+  _userId: string, // Add userId
+  _userEmail: string, // Add userEmail
+  _jti: string // Add jti
+): Promise<HandlerResult> => {
   await dbConnect();
 
   try {
-    const items = await Item.find({}).sort({ createdAt: -1 });
-    return NextResponse.json({ items }, { status: 200 });
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const skip = (page - 1) * limit;
+    const baseMatchQuery = {};
+
+    const itemsPipeline: PipelineStage[] = [ 
+      { $match: baseMatchQuery },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: Transaction.collection.name,
+          let: { itemId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$item', '$$itemId'] }
+              }
+            },
+            {
+              $group: {
+                _id: '$tipe',
+                totalBerat: { $sum: '$berat' }
+              }
+            }
+          ],
+          as: 'transactionAggregates'
+        }
+      },
+      {
+        $addFields: {
+          totalMasuk: {
+            $reduce: {
+              input: '$transactionAggregates',
+              initialValue: 0,
+              in: {
+                $cond: [
+                  { $eq: ['$$this._id', TransactionType.PEMBELIAN] },
+                  { $add: ['$$value', '$$this.totalBerat'] },
+                  '$$value'
+                ]
+              }
+            }
+          },
+          totalKeluar: {
+            $reduce: {
+              input: '$transactionAggregates',
+              initialValue: 0,
+              in: {
+                $cond: [
+                  { $eq: ['$$this._id', TransactionType.PENJUALAN] },
+                  { $add: ['$$value', '$$this.totalBerat'] },
+                  '$$value'
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          namaBarang: 1,
+          stokAwal: 1,
+          stokSaatIni: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          totalMasuk: 1,
+          totalKeluar: 1
+        }
+      }
+    ];
+
+    const itemsWithAggregates = await Item.aggregate(itemsPipeline);
+
+    const totalItemsResult = await Item.aggregate([
+      { $match: baseMatchQuery },
+      { $count: 'totalItems' }
+    ]);
+    const totalItems = totalItemsResult.length > 0 ? totalItemsResult[0].totalItems : 0;
+    const totalPages = Math.ceil(totalItems / limit);
+
+    return {
+      status: 200,
+      data: {
+        items: itemsWithAggregates as IItem[],
+        currentPage: page,
+        totalPages,
+        totalItems
+      }
+    };
   } catch (error) {
     console.error('Get items error:', error);
-    return NextResponse.json(
-      { message: 'An internal server error occurred.' },
-      { status: 500 }
-    );
+    return { status: 500, error: 'An internal server error occurred.' };
   }
 };
 

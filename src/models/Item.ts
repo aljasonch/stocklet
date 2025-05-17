@@ -6,6 +6,9 @@ export interface IItem extends Document {
   stokSaatIni: number;
   createdAt: Date;
   updatedAt: Date;
+  // Optional fields for aggregated transaction data
+  totalMasuk?: number;
+  totalKeluar?: number;
 }
 
 const ItemSchema: Schema<IItem> = new Schema(
