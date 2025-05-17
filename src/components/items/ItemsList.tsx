@@ -129,7 +129,7 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
             <div className="mt-2.5 sm:flex sm:justify-between">
               <div className="sm:flex">
                 <p className="flex items-center text-sm text-[color:var(--foreground)] opacity-75">
-                  Stok Awal: {item.stokAwal?.toFixed(2) ?? 'N/A'}
+                  Stok: {item.stokSaatIni?.toFixed(2) ?? 'N/A'}
                 </p>
                 <p className="flex items-center text-sm text-[color:var(--foreground)] opacity-75 sm:ml-4">
                   Masuk: {item.totalMasuk?.toFixed(2) ?? '0.00'}

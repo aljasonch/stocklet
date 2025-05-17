@@ -91,19 +91,19 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
         <div className="mb-4 flex space-x-2">
           <button
             onClick={() => setFilterType('ALL')} 
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === 'ALL' ? 'bg-[color:var(--primary)] text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
+            className={`px-4 py-2 rounded-md cursor-pointer text-sm font-medium transition-colors ${filterType === 'ALL' ? 'bg-[color:var(--primary)] text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
           >
             Semua
           </button>
           <button
             onClick={() => setFilterType(TransactionType.PENJUALAN)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === TransactionType.PENJUALAN ? 'bg-red-500 text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
+            className={`px-4 py-2 rounded-md cursor-pointer text-sm font-medium transition-colors ${filterType === TransactionType.PENJUALAN ? 'bg-red-500 text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
           >
             Penjualan
           </button>
           <button
             onClick={() => setFilterType(TransactionType.PEMBELIAN)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === TransactionType.PEMBELIAN ? 'bg-green-500 text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
+            className={`px-4 py-2 rounded-md cursor-pointer text-sm font-medium transition-colors ${filterType === TransactionType.PEMBELIAN ? 'bg-green-500 text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)]  text-[color:var(--foreground)]'}`}
           >
             Pembelian
           </button>
@@ -147,19 +147,19 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
       <div className="mb-4 flex space-x-2">
         <button
           onClick={() => setFilterType('ALL')} 
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === 'ALL' ? 'bg-[color:var(--primary)] text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
+          className={`px-4 py-2 rounded-md cursor-pointer text-sm font-medium transition-colors ${filterType === 'ALL' ? 'bg-[color:var(--primary)] text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
         >
           Semua
         </button>
         <button
           onClick={() => setFilterType(TransactionType.PENJUALAN)}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === TransactionType.PENJUALAN ? 'bg-red-500 text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
+          className={`px-4 py-2 rounded-md cursor-pointer text-sm font-medium transition-colors ${filterType === TransactionType.PENJUALAN ? 'bg-red-500 text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
         >
           Penjualan
         </button>
         <button
           onClick={() => setFilterType(TransactionType.PEMBELIAN)}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === TransactionType.PEMBELIAN ? 'bg-green-500 text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
+          className={`px-4 py-2 rounded-md cursor-pointer text-sm font-medium transition-colors ${filterType === TransactionType.PEMBELIAN ? 'bg-green-500 text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
         >
           Pembelian
         </button>
@@ -246,7 +246,7 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
         <button
           onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
           disabled={currentPage === 1 || isLoading}
-          className="px-4 py-2 text-sm font-medium rounded-md border border-[color:var(--border-color)] bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 text-sm font-medium rounded-md cursor-pointer border border-[color:var(--border-color)] bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Previous
         </button>
@@ -256,7 +256,7 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
         <button
           onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
           disabled={currentPage === totalPages || isLoading}
-          className="px-4 py-2 text-sm font-medium rounded-md border border-[color:var(--border-color)] bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 text-sm font-medium rounded-md cursor-pointer border border-[color:var(--border-color)] bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Next
         </button>
