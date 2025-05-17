@@ -50,18 +50,16 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
 
   useEffect(() => {
     fetchTransactions(currentPage, filterType);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, filterType, refreshKey]); // Fetch when page, filter, or refreshKey changes
+  }, [currentPage, filterType, refreshKey]);
 
-  // Reset to page 1 when filterType changes or refreshKey changes
   useEffect(() => {
-    if (refreshKey && refreshKey > 0) { // If refreshKey is used, go to page 1
+    if (refreshKey && refreshKey > 0) { 
         setCurrentPage(1);
     }
   }, [refreshKey]);
 
   useEffect(() => {
-    setCurrentPage(1); // Reset to page 1 when filter type changes
+    setCurrentPage(1);
   }, [filterType]);
 
   const themedTextMuted = "text-center text-[color:var(--foreground)] opacity-75 py-4";
@@ -77,7 +75,7 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
     </div>;
   }
 
-  if (isLoading && transactions.length === 0) { // Show loading only if there are no transactions yet
+  if (isLoading && transactions.length === 0) {
     return <p className={themedTextMuted}>Loading transactions...</p>;
   }
 
@@ -87,25 +85,24 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
     </div>;
   }
 
-  // Show "No transactions found" only if not loading and after fetch attempt
   if (!isLoading && transactions.length === 0) {
     return (
       <>
         <div className="mb-4 flex space-x-2">
           <button
-            onClick={() => setFilterType('ALL')} // This will trigger useEffect to reset page and fetch
+            onClick={() => setFilterType('ALL')} 
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === 'ALL' ? 'bg-[color:var(--primary)] text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
           >
             Semua
           </button>
           <button
-            onClick={() => setFilterType(TransactionType.PENJUALAN)} // This will trigger useEffect
+            onClick={() => setFilterType(TransactionType.PENJUALAN)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === TransactionType.PENJUALAN ? 'bg-red-500 text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
           >
             Penjualan
           </button>
           <button
-            onClick={() => setFilterType(TransactionType.PEMBELIAN)} // This will trigger useEffect
+            onClick={() => setFilterType(TransactionType.PEMBELIAN)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === TransactionType.PEMBELIAN ? 'bg-green-500 text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
           >
             Pembelian
@@ -114,7 +111,6 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
         <p className={themedTextMuted}>
           {filterType === 'ALL' ? 'No transactions found.' : `No ${filterType.toLowerCase()} transactions found.`}
         </p>
-        {/* Still show pagination if on a page > 1 and no items, allowing to go back */}
         {totalPages > 1 && (
            <div className="mt-6 flex justify-center items-center space-x-3">
             <button
@@ -150,7 +146,7 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
     <div className={`mt-6 transition-opacity duration-500 ease-in-out ${isLoading && transactions.length === 0 ? 'opacity-0' : 'opacity-100'}`}>
       <div className="mb-4 flex space-x-2">
         <button
-          onClick={() => setFilterType('ALL')} // This will trigger useEffect to reset page and fetch
+          onClick={() => setFilterType('ALL')} 
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === 'ALL' ? 'bg-[color:var(--primary)] text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
         >
           Semua
@@ -188,7 +184,7 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
             </tr>
           </thead>
           <tbody className="bg-[color:var(--card-bg)] divide-y divide-[color:var(--border-color)]">
-            {transactions.map((tx) => ( // Use transactions directly as it's now filtered and paginated from API
+            {transactions.map((tx) => (
               <tr key={tx._id as string} className="hover:bg-[color:var(--background)] transition-colors duration-150">
                 <td className={tdTextMuted}>{new Date(tx.tanggal).toLocaleDateString('id-ID')}</td>
                 <td className={`${tdBaseClasses}`}>

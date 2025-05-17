@@ -1,10 +1,14 @@
-import { NextResponse, NextRequest } from 'next/server'; 
+import { NextRequest } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
-import Transaction, { ITransaction } from '@/models/Transaction';
+import Transaction from '@/models/Transaction';
 import Item, { IItem } from '@/models/Item';
 import { TransactionType } from '@/types/enums';
 import mongoose from 'mongoose';
-import { getUserIdFromToken } from '@/lib/authUtils'; // Import getUserIdFromToken
+import { withAuthStatic, HandlerResult } from '@/lib/authUtils';
+
+interface RouteContext {
+  params: { id: string };
+}
 
 interface UpdateTransactionRequestBody {
   tanggal: string | Date;
@@ -19,155 +23,156 @@ interface UpdateTransactionRequestBody {
   noSJSby?: string;
 }
 
-const getSingleTransactionHandler = async (req: NextRequest, { params }: { params: { id: string } }) => { // Revert type
-  // --- Add Auth Check ---
-  const userId = getUserIdFromToken(req);
-  if (!userId) return new NextResponse("Unauthorized", { status: 401 });
-  // --- End Auth Check ---
-
+// GET a single transaction
+const getSingleTransactionHandler = async (
+  req: NextRequest,
+  context: RouteContext,
+  userId: string,
+  _userEmail: string, // Add userEmail
+  _jti: string // Add jti
+): Promise<HandlerResult> => {
   await dbConnect();
-  const id = params.id;
+  const id = context.params.id;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-    return NextResponse.json({ message: 'Invalid transaction ID.' }, { status: 400 });
+    return { status: 400, error: 'Invalid transaction ID.' };
   }
 
   try {
-    const transaction = await Transaction.findById(id).populate<{item: IItem}>('item', 'namaBarang');
+    const transaction = await Transaction.findOne({ _id: id, createdBy: new mongoose.Types.ObjectId(userId) })
+      .populate<{item: IItem}>('item', 'namaBarang stokSaatIni'); 
+    
     if (!transaction) {
-      return NextResponse.json({ message: 'Transaction not found.' }, { status: 404 });
+      return { status: 404, error: 'Transaction not found or not owned by user.' };
     }
-    return NextResponse.json({ transaction }, { status: 200 });
+    return { status: 200, data: { transaction } };
   } catch (error) {
     console.error(`Get transaction ${id} error:`, error);
-    return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
+    return { status: 500, error: 'An internal server error occurred.' };
   }
 };
 
-const updateTransactionHandler = async (req: NextRequest, { params }: { params: { id: string } }) => { // Revert type
-  // --- Add Auth Check ---
-  const userId = getUserIdFromToken(req);
-  if (!userId) return new NextResponse("Unauthorized", { status: 401 });
-  // --- End Auth Check ---
-
+// UPDATE a transaction
+const updateTransactionHandler = async (
+  req: NextRequest,
+  context: RouteContext,
+  userId: string,
+  _userEmail: string, // Add userEmail
+  _jti: string // Add jti
+): Promise<HandlerResult> => {
   await dbConnect();
-  const id = params.id;
+  const transactionId = context.params.id;
 
-  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-    return NextResponse.json({ message: 'Invalid transaction ID.' }, { status: 400 });
+  if (!transactionId || !mongoose.Types.ObjectId.isValid(transactionId)) {
+    return { status: 400, error: 'Invalid transaction ID.' };
   }
 
   try {
-    const body: UpdateTransactionRequestBody = await req.json(); // Use the defined interface
-    const {
-      tanggal, tipe, customer, noSJ, noInv, noPO, itemId,
-      berat, harga, noSJSby,
-    } = body;
+    const body: UpdateTransactionRequestBody = await req.json();
+    const { tanggal, tipe, customer, noSJ, noInv, noPO, itemId, berat, harga, noSJSby } = body;
+
     if (!tanggal || !tipe || !customer || !itemId || typeof berat === 'undefined' || typeof harga === 'undefined') {
-      return NextResponse.json({ message: 'Missing required fields (tanggal, tipe, customer, itemId, berat, harga).' }, { status: 400 });
+      return { status: 400, error: 'Missing required fields.' };
     }
     if (!Object.values(TransactionType).includes(tipe as TransactionType)) {
-        return NextResponse.json({ message: 'Invalid transaction type.' }, { status: 400 });
+        return { status: 400, error: 'Invalid transaction type.' };
     }
 
-    const oldTransaction = await Transaction.findById(id);
+    const oldTransaction = await Transaction.findOne({ _id: transactionId, createdBy: new mongoose.Types.ObjectId(userId) });
     if (!oldTransaction) {
-      return NextResponse.json({ message: 'Transaction not found to update.' }, { status: 404 });
+      return { status: 404, error: 'Transaction not found or not owned by user.' };
     }
 
-    const item = await Item.findById(itemId);
-    if (!item) {
-      return NextResponse.json({ message: 'Item not found.' }, { status: 404 });
+    const newItemDoc = await Item.findById(itemId);
+    if (!newItemDoc) {
+      return { status: 404, error: 'Item not found for transaction update.' };
     }
-    
-    const oldItemDoc = await Item.findById(oldTransaction.item as mongoose.Types.ObjectId);
-    
-    const currentTargetItem = item as IItem; 
+    const currentTargetItem = newItemDoc as IItem;
 
-    if (oldItemDoc) {
-      const oldItem = oldItemDoc as IItem; 
+    // Revert stock changes from the old transaction state
+    const originalItemDoc = await Item.findById(oldTransaction.item as mongoose.Types.ObjectId);
+    if (originalItemDoc) {
       if (oldTransaction.tipe === TransactionType.PENJUALAN) {
-        oldItem.stokSaatIni += oldTransaction.berat;
+        originalItemDoc.stokSaatIni += oldTransaction.berat;
       } else if (oldTransaction.tipe === TransactionType.PEMBELIAN) {
-        oldItem.stokSaatIni -= oldTransaction.berat;
+        originalItemDoc.stokSaatIni -= oldTransaction.berat;
       }
-      
-      if (!(oldItem._id as mongoose.Types.ObjectId).equals(currentTargetItem._id as mongoose.Types.ObjectId)) { 
-        await oldItem.save();
-      }
+      await originalItemDoc.save();
     }
-    
-    const stockChangeForNewItem = tipe === TransactionType.PENJUALAN ? -berat : berat;
 
+    // Apply stock changes for the new transaction state
     if (tipe === TransactionType.PENJUALAN) {
-        let stockAvailableForSale = currentTargetItem.stokSaatIni;
-        if (oldItemDoc && (oldItemDoc._id as mongoose.Types.ObjectId).equals(currentTargetItem._id as mongoose.Types.ObjectId)) {
-            stockAvailableForSale = (oldItemDoc as IItem).stokSaatIni; 
-        }
+      // Ensure _id is treated as ObjectId for comparison
+      const originalItemId = originalItemDoc?._id as mongoose.Types.ObjectId | undefined;
+      const currentTargetItemId = currentTargetItem._id as mongoose.Types.ObjectId;
 
-        if (stockAvailableForSale < berat) {
-            return NextResponse.json(
-                { message: `Stok tidak mencukupi untuk ${currentTargetItem.namaBarang}. Stok tersedia: ${stockAvailableForSale} kg.` },
-                { status: 400 }
-            );
+      if (currentTargetItem.stokSaatIni < berat && !(originalItemId && originalItemId.equals(currentTargetItemId) && (originalItemDoc!.stokSaatIni + oldTransaction.berat) >= berat) ) {
+        // Re-save original item's stock if it was changed and transaction fails
+        if (originalItemDoc && originalItemId && !originalItemId.equals(currentTargetItemId)) { // if item changed, originalItemDoc is already reverted
+             // no action needed as originalItemDoc was saved
+        } else if (originalItemDoc) { // if item is same, we need to put its stock back to pre-revert state
+            if (oldTransaction.tipe === TransactionType.PENJUALAN) originalItemDoc.stokSaatIni -= oldTransaction.berat;
+            else if (oldTransaction.tipe === TransactionType.PEMBELIAN) originalItemDoc.stokSaatIni += oldTransaction.berat;
+            await originalItemDoc.save();
         }
+        return { status: 400, error: `Stok tidak mencukupi untuk ${currentTargetItem.namaBarang}.` };
+      }
+      currentTargetItem.stokSaatIni -= berat;
+    } else if (tipe === TransactionType.PEMBELIAN) {
+      currentTargetItem.stokSaatIni += berat;
     }
+    await currentTargetItem.save();
     
-    // Cast _id to ObjectId before comparison
-    if (oldItemDoc && (oldItemDoc._id as mongoose.Types.ObjectId).equals(currentTargetItem._id as mongoose.Types.ObjectId)) {
-        (oldItemDoc as IItem).stokSaatIni += stockChangeForNewItem;
-        await (oldItemDoc as IItem).save();
-    } else {
-        currentTargetItem.stokSaatIni += stockChangeForNewItem;
-        await currentTargetItem.save();
+    // Update transaction fields
+    oldTransaction.tanggal = typeof tanggal === 'string' ? new Date(tanggal) : tanggal;
+    oldTransaction.tipe = tipe;
+    oldTransaction.customer = customer;
+    oldTransaction.noSJ = noSJ;
+    oldTransaction.noInv = noInv;
+    oldTransaction.noPO = noPO;
+    oldTransaction.item = typeof itemId === 'string' ? new mongoose.Types.ObjectId(itemId) : itemId;
+    oldTransaction.namaBarangSnapshot = currentTargetItem.namaBarang;
+    oldTransaction.berat = berat;
+    oldTransaction.harga = harga;
+    oldTransaction.totalHarga = berat * harga;
+    oldTransaction.noSJSby = noSJSby;
+
+    const updatedTransaction = await oldTransaction.save();
+
+    return { status: 200, message: 'Transaction updated successfully.', data: { transaction: updatedTransaction }};
+
+  } catch (error: unknown) {
+    console.error(`Update transaction ${transactionId} error:`, error);
+    if (error instanceof mongoose.Error.ValidationError) {
+      return { status: 400, error: error.message };
     }
-
-    // Ensure tanggal is Date and itemId is ObjectId
-    const finalItemId = typeof itemId === 'string' ? new mongoose.Types.ObjectId(itemId) : itemId;
-    const finalTanggal = typeof tanggal === 'string' ? new Date(tanggal) : tanggal;
-
-    const updatedTransactionData: Partial<ITransaction> = {
-      tanggal: finalTanggal, // Use converted Date
-      tipe, customer, noSJ, noInv, noPO,
-      item: finalItemId, // Use converted ObjectId
-      namaBarangSnapshot: item.namaBarang,
-      berat, harga, 
-      totalHarga: berat * harga, 
-      noSJSby,
-    };
-
-    const updatedTransaction = await Transaction.findByIdAndUpdate(id, updatedTransactionData, { new: true });
-
-    return NextResponse.json({ message: 'Transaction updated successfully.', transaction: updatedTransaction }, { status: 200 });
-
-  } catch (error: unknown) { 
-    console.error(`Update transaction ${id} error:`, error);
-    if (error instanceof Error && error.name === 'ValidationError') {
-      return NextResponse.json({ message: error.message }, { status: 400 });
-    }
-    return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
+    return { status: 500, error: 'An internal server error occurred.' };
   }
-}
+};
 
-const deleteTransactionHandler = async (req: NextRequest, { params }: { params: { id: string } }) => { // Revert type
-  // --- Add Auth Check ---
-  const userId = getUserIdFromToken(req);
-  if (!userId) return new NextResponse("Unauthorized", { status: 401 });
-  // --- End Auth Check ---
-
+// DELETE a transaction
+const deleteTransactionHandler = async (
+  req: NextRequest,
+  context: RouteContext,
+  userId: string,
+  _userEmail: string, // Add userEmail
+  _jti: string // Add jti
+): Promise<HandlerResult> => {
   await dbConnect();
-  const id = params.id;
+  const transactionId = context.params.id;
 
-  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-    return NextResponse.json({ message: 'Invalid transaction ID.' }, { status: 400 });
+  if (!transactionId || !mongoose.Types.ObjectId.isValid(transactionId)) {
+    return { status: 400, error: 'Invalid transaction ID.' };
   }
   
   try {
-    const transactionToDelete = await Transaction.findById(id);
+    const transactionToDelete = await Transaction.findOneAndDelete({ _id: transactionId, createdBy: new mongoose.Types.ObjectId(userId) });
+
     if (!transactionToDelete) {
-      return NextResponse.json({ message: 'Transaction not found to delete.' }, { status: 404 });
+      return { status: 404, error: 'Transaction not found or not owned by user.' };
     }
 
+    // Adjust stock back
     const item = await Item.findById(transactionToDelete.item);
     if (item) {
       if (transactionToDelete.tipe === TransactionType.PENJUALAN) {
@@ -178,15 +183,13 @@ const deleteTransactionHandler = async (req: NextRequest, { params }: { params: 
       await item.save();
     }
 
-    await Transaction.findByIdAndDelete(id);
-    return NextResponse.json({ message: 'Transaction deleted successfully.' }, { status: 200 });
-
+    return { status: 200, message: 'Transaction deleted successfully.' };
   } catch (error: unknown) {
-    console.error(`Delete transaction ${id} error:`, error);
-    return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
+    console.error(`Delete transaction ${transactionId} error:`, error);
+    return { status: 500, error: 'An internal server error occurred.' };
   }
 };
 
-export const GET = getSingleTransactionHandler; // Remove withAuth wrapper and explicit type
-export const PUT = updateTransactionHandler; // Remove withAuth wrapper and explicit type
-export const DELETE = deleteTransactionHandler; // Remove withAuth wrapper and explicit type
+export const GET = withAuthStatic(getSingleTransactionHandler);
+export const PUT = withAuthStatic(updateTransactionHandler);
+export const DELETE = withAuthStatic(deleteTransactionHandler);

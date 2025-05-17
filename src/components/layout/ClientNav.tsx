@@ -21,19 +21,16 @@
         : 'text-[color:var(--foreground)] opacity-75 hover:opacity-100 hover:text-[color:var(--primary)] hover:bg-opacity-5'
       } cursor-pointer`;
 
-    const mobileNavLinkClasses = (path: string) =>
+    const mobileNavLinkClasses = (path: string) =>      
       `block py-2.5 px-4 text-sm transition-colors duration-150 ease-in-out 
       ${pathname === path 
         ? 'font-semibold text-[color:var(--primary)] ' 
-        : 'text-[color:var(--foreground)] hover:bg-[color:var(--background)] hover:text-[color:var(--primary)]'
-      }`;
-
-    useEffect(() => {
+        : 'text-[color:var(--foreground)] hover:bg-[color:var(--background)] hover:text-[color:var(--primary)]'      }`;    
+      useEffect(() => {
       if (isMobileMenuOpen) {
         setIsMobileMenuOpen(false);
       }
-    }, [pathname]); // Corrected: Only run when pathname changes
-
+    }, [pathname, isMobileMenuOpen]);
 
     if (isLoading) {
       return (

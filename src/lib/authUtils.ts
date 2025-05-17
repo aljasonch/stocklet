@@ -1,126 +1,134 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt, { JwtPayload } from 'jsonwebtoken';
+import jwt, { JwtPayload, VerifyOptions } from 'jsonwebtoken';
+import { randomUUID } from 'crypto';
+import RevokedToken from '@/models/RevokedToken';
+import dbConnect from './dbConnect';
+
+const JWT_ISSUER = 'stocklet-app';
+const JWT_AUDIENCE = 'stocklet-users';
+const JWT_EXPIRY = '15m';
+const COOKIE_MAX_AGE = 15 * 60;
+const CLOCK_SKEW_TOLERANCE = 60; 
+const REFRESH_THRESHOLD = 5 * 60; 
 
 interface DecodedToken extends JwtPayload {
   userId: string;
   email: string;
+  jti: string;
+}
+
+export function verifyTokenFromCookies(req: NextRequest): DecodedToken | null {
+  const tokenCookie = req.cookies.get('token');
+  if (!tokenCookie || !tokenCookie.value) {
+    return null;
+  }
+  const token = tokenCookie.value;
+
+  try {
+    const verifyOptions: VerifyOptions = {
+      algorithms: ['HS256'],
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
+      clockTolerance: CLOCK_SKEW_TOLERANCE,
+    };    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!, verifyOptions) as DecodedToken;
+    
+    return decoded; 
+  } catch {
+    return null;
+  }
 }
 
 export function getUserIdFromToken(req: NextRequest): string | null {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
-
-  const token = authHeader.substring(7); 
-  if (!token) {
-    return null;
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as DecodedToken;
-    return decoded.userId;
-  } catch (error) {
-    console.error('JWT verification error:', error);
-    return null;
-  }
+  const decodedToken = verifyTokenFromCookies(req);
+  return decodedToken ? decodedToken.userId : null;
 }
-// Removed RouteParams type as it was only used by AuthenticatedApiHandler
-// Removed AuthenticatedApiHandler type
-// Removed withAuth function
 
-// Updated withAuthStatic to handle dynamic route context and sliding sessions
-export function withAuthStatic<TContext = Record<string, unknown>>(
-  handler: (req: NextRequest, context: TContext) => Promise<Response>
+export interface HandlerResult {
+  status: number;
+  data?: Record<string, unknown>;
+  error?: string;
+  message?: string; 
+}
+
+// TParams is the type of the *resolved* parameters object, e.g., { id: string } or Record<string, never>
+export function withAuthStatic<TParams = Record<string, string | string[] | undefined>>(
+  // Inner handler expects context with resolved params
+  handler: (
+    req: NextRequest,
+    context: { params: TParams }, // Context with resolved params
+    userId: string,
+    userEmail: string,
+    jti: string
+  ) => Promise<HandlerResult>
 ) {
-  return async (req: NextRequest, context: TContext) => {
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return new NextResponse(JSON.stringify({ message: 'Unauthorized: Missing or malformed token' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+  // The function returned to Next.js
+  // Its context.params is typed as a Promise to satisfy Next.js's internal type checker.
+  return async (
+    req: NextRequest,
+    contextFromNextJs: { params: Promise<TParams> } // Context with params as a Promise (for type checker)
+  ) => {
+    await dbConnect();
+
+    const decodedToken = verifyTokenFromCookies(req);
+    if (!decodedToken || !decodedToken.userId || !decodedToken.jti) {
+      const errResponse = NextResponse.json({ message: 'Unauthorized: Invalid or expired token (decode failed)' }, { status: 401 });
+      errResponse.cookies.delete('token');
+      return errResponse;
     }
 
-    const token = authHeader.substring(7);
-    if (!token) {
-      return new NextResponse(JSON.stringify({ message: 'Unauthorized: Missing token' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+    const isRevoked = await RevokedToken.findOne({ jti: decodedToken.jti });
+    if (isRevoked) {
+      const errResponse = NextResponse.json({ message: 'Unauthorized: Token has been revoked' }, { status: 401 });
+      errResponse.cookies.delete('token');
+      return errResponse;
     }
 
-    let decoded: DecodedToken;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET!) as DecodedToken;
-    } catch (error) {
-      console.error('JWT verification error in withAuthStatic:', error);
-      return new NextResponse(JSON.stringify({ message: 'Unauthorized: Invalid or expired token' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
-    }
+    // Resolve the params. If contextFromNextJs.params is not a promise at runtime, 
+    // await will effectively return the value itself. This satisfies the type checker.
+    const resolvedParams = await contextFromNextJs.params;
+    
+    const handlerResult = await handler(
+      req,
+      { params: resolvedParams }, // Pass context with resolved params to the inner handler
+      decodedToken.userId,
+      decodedToken.email,
+      decodedToken.jti
+    );
+    const responsePayload = handlerResult.data || { message: handlerResult.message || handlerResult.error };
+    const responseStatus = handlerResult.status;
+    
+    const finalResponse = NextResponse.json(responsePayload, { status: responseStatus });
 
-    if (!decoded.userId) {
-      return new NextResponse(JSON.stringify({ message: 'Unauthorized: Invalid token payload' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
-    }
 
-    // Proceed with the handler
-    const response = await handler(req, context);
-
-    // Sliding session: Check if token needs refresh and issue a new one
-    const currentTime = Math.floor(Date.now() / 1000); // current time in seconds
-    const tokenExp = decoded.exp; // expiration time from token (already in seconds)
-    let newToken: string | null = null;
+    const currentTime = Math.floor(Date.now() / 1000);
+    const tokenExp = decodedToken.exp; 
+    let newJwtToken: string | null = null;
 
     if (tokenExp) {
-      const fiveMinutesInSeconds = 5 * 60;
-      // Refresh if token expires in less than 5 minutes (or any configurable threshold)
-      if (tokenExp - currentTime < fiveMinutesInSeconds) {
-        newToken = jwt.sign(
-          { userId: decoded.userId, email: decoded.email },
+      if ((tokenExp - currentTime) < (REFRESH_THRESHOLD + CLOCK_SKEW_TOLERANCE)) {
+        const newJti = randomUUID();
+        newJwtToken = jwt.sign(
+          { userId: decodedToken.userId, email: decodedToken.email, jti: newJti },
           process.env.JWT_SECRET!,
-          { expiresIn: '15m' } // Issue a new token for 15 minutes
+          { 
+            expiresIn: JWT_EXPIRY,
+            issuer: JWT_ISSUER,
+            audience: JWT_AUDIENCE,
+          }
         );
       }
     }
 
-    if (newToken) {
-      // Clone the response to set a new header
-      const newHeaders = new Headers(response.headers);
-      newHeaders.set('X-New-Token', newToken);
-      
-      // For NextResponse, we need to reconstruct it if we want to change headers and keep the body.
-      // If the original response was a NextResponse.json(), its body is already stringified.
-      // If it was a simple NextResponse with a ReadableStream body, this gets more complex.
-      // Assuming handlers mostly return NextResponse.json() or simple NextResponse with string bodies.
-      
-      let body = null;
-      if (response.body) {
-        // This is tricky because response.body is a ReadableStream and can only be consumed once.
-        // For JSON responses, NextResponse.json() handles stringifying.
-        // If we need to preserve the exact body, we might need to make assumptions or read it.
-        // A common pattern is that handlers return NextResponse.json().
-        // If the response is already a JSON response, its body is already stringified.
-        // For simplicity, let's assume we can get the body if it's JSON.
-        // This part might need adjustment based on actual handler return types.
-        // A more robust way would be for handlers to return data, and this wrapper forms the NextResponse.
-        
-        // If the response was created with NextResponse.json(), its body is already stringified.
-        // We can try to get it as text.
-        try {
-            // Clone the response to read its body without consuming the original
-            const clonedResponse = response.clone();
-            body = await clonedResponse.text(); // Or .json() if sure it's always JSON
-        } catch (e) {
-            // console.warn("Could not clone response body for token refresh header:", e);
-            // If cloning/reading fails, we might have to return the original response without the new token.
-            // Or, if the response was simple (e.g. just status), we can reconstruct.
-        }
-      }
-      
-      // Reconstruct the response with new headers
-      // This is a simplified reconstruction. If handlers return complex Response objects,
-      // this might not perfectly preserve them.
-      const newResponse = new NextResponse(body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: newHeaders,
+    if (newJwtToken) {
+      finalResponse.cookies.set('token', newJwtToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: COOKIE_MAX_AGE,
+        path: '/',
       });
-      return newResponse;
     }
-
-    return response;
+    return finalResponse;
   };
 }

@@ -1,28 +1,31 @@
-import { NextResponse, NextRequest } from 'next/server'; 
+import { NextRequest } from 'next/server'; 
 import dbConnect from '@/lib/dbConnect';
-import Transaction from '@/models/Transaction';
+import Transaction, { ITransaction } from '@/models/Transaction'; // Import ITransaction
 import { TransactionType } from '@/types/enums'; 
 import { IItem } from '@/models/Item';
 import mongoose from 'mongoose';
-import { withAuthStatic, getUserIdFromToken } from '@/lib/authUtils'; // Import getUserIdFromToken
+import { withAuthStatic, HandlerResult } from '@/lib/authUtils'; // Import HandlerResult
 
 interface SalesReportMatchQuery {
-  createdBy: mongoose.Types.ObjectId; // Added for user filtering
+  createdBy: mongoose.Types.ObjectId;
   tipe: TransactionType;
   tanggal?: { $gte: Date; $lte: Date };
   customer?: { $regex: RegExp };
   item?: mongoose.Types.ObjectId;
-  $and?: Array<Record<string, any>>; // For NoSJ type filtering
+  $and?: Array<Record<string, unknown>>;
 }
 
-const getSalesReportHandler = async (req: NextRequest) => {
+const getSalesReportHandler = async (
+  req: NextRequest,
+  context: { params: Record<string, never> },
+  userId: string,
+  _userEmail: string, // prefixed with _ if not used
+  _jti: string // prefixed with _ if not used
+): Promise<HandlerResult> => {
   await dbConnect();
 
   try {
-    const userId = getUserIdFromToken(req);
-    if (!userId) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+    // userId is passed by withAuthStatic
 
     const { searchParams } = new URL(req.url);
     const month = searchParams.get('month');
@@ -97,13 +100,10 @@ const getSalesReportHandler = async (req: NextRequest) => {
       .populate<{item: IItem}>('item', 'namaBarang')
       .sort({ tanggal: -1 });
 
-    return NextResponse.json({ salesReport }, { status: 200 });
+    return { status: 200, data: { salesReport: salesReport as ITransaction[] } };
   } catch (error) {
     console.error('Get sales report error:', error);
-    return NextResponse.json(
-      { message: 'An internal server error occurred.' },
-      { status: 500 }
-    );
+    return { status: 500, error: 'An internal server error occurred.' };
   }
 };
 

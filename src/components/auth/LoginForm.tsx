@@ -30,7 +30,11 @@ export default function LoginForm() {
         throw new Error(data.message || 'Login failed');
       }
 
-      login(data.token, data.user);
+      if (data.user) {
+        login(data.user);
+      } else {
+        throw new Error('Login successful, but user data was not returned.');
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {

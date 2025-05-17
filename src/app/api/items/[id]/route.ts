@@ -1,9 +1,10 @@
-import { NextResponse, NextRequest } from 'next/server';
+import { NextRequest } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
-import Item, { IItem } from '@/models/Item'; // Added IItem
-import Transaction from '@/models/Transaction';
+import Item, { IItem } from '@/models/Item';
+import Transaction from '@/models/Transaction'; // Ensure Transaction model is imported for $lookup
+import { TransactionType } from '@/types/enums'; // Ensure TransactionType is imported for $lookup
 import mongoose from 'mongoose';
-import { withAuthStatic } from '@/lib/authUtils'; // Import withAuthStatic
+import { withAuthStatic, HandlerResult } from '@/lib/authUtils'; // Import HandlerResult
 
 interface RouteContext {
   params: {
@@ -11,24 +12,32 @@ interface RouteContext {
   };
 }
 
-const getSingleItemHandler = async (req: NextRequest, { params }: RouteContext) => {
+const getSingleItemHandler = async (
+  req: NextRequest,
+  context: RouteContext,
+  _userId: string, // Prefixed if not used, but required by withAuthStatic
+  _userEmail: string,
+  _jti: string
+): Promise<HandlerResult> => {
   await dbConnect();
-  const { id } = params;
+  const { id } = context.params;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-    return NextResponse.json({ message: 'Invalid item ID.' }, { status: 400 });
+    return { status: 400, error: 'Invalid item ID.' };
   }
 
   try {
-    // Fetch item and include aggregated transaction data
+    // userId is available if items need to be user-specific in the future for the $match stage
     const itemsWithAggregates = await Item.aggregate([
-      { $match: { _id: new mongoose.Types.ObjectId(id) } },
+      { $match: { _id: new mongoose.Types.ObjectId(id) } }, // Potentially add createdBy: userId here if items are user-specific
       {
         $lookup: {
           from: Transaction.collection.name,
           let: { itemId: '$_id' },
           pipeline: [
-            { $match: { $expr: { $eq: ['$item', '$$itemId'] } } },
+            // If transactions in lookup should also be user-specific (they are already via main queries)
+            // { $match: { $expr: { $and: [ { $eq: ['$item', '$$itemId'] }, { $eq: ['$createdBy', new mongoose.Types.ObjectId(userId)] } ] } } },
+            { $match: { $expr: { $eq: ['$item', '$$itemId'] } } }, // Simpler: item's own transactions
             { $group: { _id: '$tipe', totalBerat: { $sum: '$berat' } } }
           ],
           as: 'transactionAggregates'
@@ -40,104 +49,110 @@ const getSingleItemHandler = async (req: NextRequest, { params }: RouteContext) 
             $reduce: {
               input: '$transactionAggregates',
               initialValue: 0,
-              in: { $cond: [{ $eq: ['$$this._id', 'PEMBELIAN'] }, { $add: ['$$value', '$$this.totalBerat'] }, '$$value'] }
+              in: { $cond: [{ $eq: ['$$this._id', TransactionType.PEMBELIAN] }, { $add: ['$$value', '$$this.totalBerat'] }, '$$value'] }
             }
           },
           totalKeluar: {
             $reduce: {
               input: '$transactionAggregates',
               initialValue: 0,
-              in: { $cond: [{ $eq: ['$$this._id', 'PENJUALAN'] }, { $add: ['$$value', '$$this.totalBerat'] }, '$$value'] }
+              in: { $cond: [{ $eq: ['$$this._id', TransactionType.PENJUALAN] }, { $add: ['$$value', '$$this.totalBerat'] }, '$$value'] }
             }
           }
         }
       },
-      { $project: { transactionAggregates: 0 } } // Remove the temporary field
+      { $project: { transactionAggregates: 0 } }
     ]);
 
     if (!itemsWithAggregates || itemsWithAggregates.length === 0) {
-      return NextResponse.json({ message: 'Item not found.' }, { status: 404 });
+      return { status: 404, error: 'Item not found.' };
     }
-    return NextResponse.json({ item: itemsWithAggregates[0] as IItem }, { status: 200 });
+    return { status: 200, data: { item: itemsWithAggregates[0] as IItem } };
   } catch (error) {
     console.error(`Get item ${id} error:`, error);
-    return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
+    return { status: 500, error: 'An internal server error occurred.' };
   }
 };
 
-const updateItemNameHandler = async (req: NextRequest, { params }: RouteContext) => {
+const updateItemNameHandler = async (
+  req: NextRequest,
+  context: RouteContext,
+  _userId: string, 
+  _userEmail: string,
+  _jti: string
+): Promise<HandlerResult> => {
   await dbConnect();
-  const { id } = params;
+  const { id } = context.params;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-    return NextResponse.json({ message: 'Invalid item ID.' }, { status: 400 });
+    return { status: 400, error: 'Invalid item ID.' };
   }
 
   try {
     const { namaBarang } = await req.json();
 
     if (!namaBarang || typeof namaBarang !== 'string' || namaBarang.trim() === '') {
-      return NextResponse.json({ message: 'Nama barang is required and must be a non-empty string.' }, { status: 400 });
+      return { status: 400, error: 'Nama barang is required and must be a non-empty string.' };
     }
 
+    // If items were user-specific, add createdBy: userId to findById query
     const itemToUpdate = await Item.findById(id);
     if (!itemToUpdate) {
-      return NextResponse.json({ message: 'Item not found.' }, { status: 404 });
+      return { status: 404, error: 'Item not found.' };
     }
+    // Add check: if (itemToUpdate.createdBy.toString() !== userId) return { status: 403, error: 'Forbidden' };
 
-    // Check if another item with the new name already exists
     const existingItemWithNewName = await Item.findOne({ namaBarang: namaBarang.trim(), _id: { $ne: id } });
     if (existingItemWithNewName) {
-      return NextResponse.json({ message: 'Another item with this name already exists.' }, { status: 409 });
+      return { status: 409, error: 'Another item with this name already exists.' };
     }
 
     itemToUpdate.namaBarang = namaBarang.trim();
     await itemToUpdate.save();
+    
+    const updatedItem = await Item.findById(id); 
 
-    // Return the updated item, potentially with aggregates if needed by frontend immediately
-    // For simplicity, just returning the updated item from DB.
-    // Or call getSingleItemHandler logic here to include aggregates.
-    const updatedItem = await Item.findById(id); // Re-fetch to get the plain object
-
-    return NextResponse.json({ message: 'Item name updated successfully.', item: updatedItem }, { status: 200 });
-  } catch (error: unknown) {
+    return { status: 200, message: 'Item name updated successfully.', data: { item: updatedItem } };  } catch (error: unknown) {
     console.error(`Update item ${id} error:`, error);
-    if (error instanceof mongoose.Error.ValidationError) {
-      return NextResponse.json({ message: error.message }, { status: 400 });
+    const err = error as { code?: number; message?: string };
+    if (err instanceof mongoose.Error.ValidationError) {
+      return { status: 400, error: err.message };
     }
-    // Check for duplicate key error if unique index on namaBarang is violated by race condition (though checked above)
-    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 11000) {
-        return NextResponse.json({ message: 'Item with this name already exists.' }, { status: 409 });
+    if (err.code === 11000) {
+        return { status: 409, error: 'Item with this name already exists.' };
     }
-    return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
+    return { status: 500, error: 'An internal server error occurred.' };
   }
 };
 
-const deleteItemHandler = async (req: NextRequest, { params }: RouteContext) => {
+const deleteItemHandler = async (
+  req: NextRequest,
+  context: RouteContext,
+  _userId: string, 
+  _userEmail: string,
+  _jti: string
+): Promise<HandlerResult> => {
   await dbConnect();
-  const { id } = params;
+  const { id } = context.params;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-    return NextResponse.json({ message: 'Invalid item ID.' }, { status: 400 });
+    return { status: 400, error: 'Invalid item ID.' };
   }
-
   try {
     const relatedTransactions = await Transaction.findOne({ item: new mongoose.Types.ObjectId(id) });
     if (relatedTransactions) {
-      return NextResponse.json(
-        { message: 'Cannot delete item. It has associated transactions. Consider deactivating it instead.' },
-        { status: 400 }
-      );
-    }
-
-    const deletedItem = await Item.findByIdAndDelete(id);
+      return { 
+        status: 400, 
+        error: 'Cannot delete item. It has associated transactions. Consider deactivating it instead.' 
+      };
+    }    const deletedItem = await Item.findByIdAndDelete(id); // If items were user-specific, the query would include createdBy filter
     if (!deletedItem) {
-      return NextResponse.json({ message: 'Item not found to delete.' }, { status: 404 });
+      return { status: 404, error: 'Item not found to delete.' };
     }
-    return NextResponse.json({ message: 'Item deleted successfully.' }, { status: 200 });
+    return { status: 200, message: 'Item deleted successfully.' };
   } catch (error) {
     console.error(`Delete item ${id} error:`, error);
-    return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
+    return { status: 500, error: 'An internal server error occurred.' };
   }
 };
 

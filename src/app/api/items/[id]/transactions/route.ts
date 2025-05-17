@@ -1,50 +1,48 @@
-import { NextResponse, NextRequest } from 'next/server';
+import { NextRequest } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import Transaction, { ITransaction } from '@/models/Transaction';
-import Item from '@/models/Item';
-import { withAuthStatic, getUserIdFromToken } from '@/lib/authUtils'; // Import getUserIdFromToken
+import Item, { IItem } from '@/models/Item'; // Import IItem
+import { withAuthStatic, HandlerResult } from '@/lib/authUtils'; // Import HandlerResult
 import mongoose from 'mongoose';
 
-interface RouteContext { // Renamed Params to RouteContext for consistency
+interface RouteContext {
   params: {
     id: string;
   };
 }
 
-const getItemTransactionsHandler = async (req: NextRequest, { params }: RouteContext) => {
+const getItemTransactionsHandler = async (
+  req: NextRequest,
+  context: RouteContext,
+  userId: string,
+  _userEmail: string, 
+  _jti: string 
+): Promise<HandlerResult> => {
   await dbConnect();
-  const { id: itemId } = params;
-
-  const userId = getUserIdFromToken(req); // Get userId
-  if (!userId) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
+  const { id: itemId } = context.params;
 
   if (!itemId || !mongoose.Types.ObjectId.isValid(itemId)) {
-    return NextResponse.json({ message: 'Valid Item ID is required.' }, { status: 400 });
+    return { status: 400, error: 'Valid Item ID is required.' };
   }
 
   try {
     const itemExists = await Item.findById(itemId);
     if (!itemExists) {
-      return NextResponse.json({ message: 'Item not found.' }, { status: 404 });
+      return { status: 404, error: 'Item not found.' };
     }
 
     // Fetch transactions for the specific item AND created by the current user
     const transactions = await Transaction.find({ 
       item: itemId, 
-      createdBy: userId 
+      createdBy: new mongoose.Types.ObjectId(userId) // Ensure userId is ObjectId for query
     })
-      .populate('item', 'namaBarang') // Keep item populated for context if needed
+      .populate<{item: IItem}>('item', 'namaBarang') 
       .sort({ tanggal: -1 });
 
-    return NextResponse.json({ transactions: transactions as ITransaction[] }, { status: 200 });
+    return { status: 200, data: { transactions: transactions as ITransaction[] } };
   } catch (error) {
     console.error(`Get item transactions error for item ID ${itemId}:`, error);
-    return NextResponse.json(
-      { message: 'An internal server error occurred.' },
-      { status: 500 }
-    );
+    return { status: 500, error: 'An internal server error occurred.' };
   }
 };
 
