@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { Document, Types } from 'mongoose';
+import { Document } from 'mongoose';
 import dbConnect from '@/lib/dbConnect';
 import Transaction from '@/models/Transaction';
 import CustomerLedger from '@/models/CustomerLedger';

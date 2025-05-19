@@ -55,7 +55,6 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
 
   useEffect(() => {
     fetchTransactions(currentPage, filterType);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, filterType, refreshKey]); 
 
 

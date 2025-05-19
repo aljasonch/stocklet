@@ -29,8 +29,7 @@ export default function TransactionForm({ onTransactionAdded, isEditMode = false
   const [berat, setBerat] = useState(initialData?.berat?.toString() || '');
   const [harga, setHarga] = useState(initialData?.harga?.toString() || '');
   const [noSJSby, setNoSJSby] = useState(initialData?.noSJSby || '');
-  
-  const [items, setItems] = useState<IItem[]>([]); 
+
   const [isLoadingItems, setIsLoadingItems] = useState(true); 
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -43,9 +42,12 @@ export default function TransactionForm({ onTransactionAdded, isEditMode = false
   const [selectedItemName, setSelectedItemName] = useState<string>('');
 
 
-  const debounce = <F extends (...args: any[]) => any>(func: F, waitFor: number) => {
+  const debounce = <T extends unknown[], R>(
+    func: (...args: T) => R,
+    waitFor: number
+  ) => {
     let timeout: ReturnType<typeof setTimeout> | null = null;
-    return (...args: Parameters<F>): Promise<ReturnType<F>> => {
+    return (...args: T): Promise<R> => {
       return new Promise(resolve => {
         if (timeout) {
           clearTimeout(timeout);
@@ -54,6 +56,12 @@ export default function TransactionForm({ onTransactionAdded, isEditMode = false
       });
     };
   };
+  
+  // Explicitly type the debounced function
+  const debouncedFetchItems = debounce<[string], Promise<void>>(
+    (searchTerm: string) => fetchItemsForSearch(searchTerm),
+    300
+  );
 
   const fetchItemsForSearch = async (searchTerm: string) => {
     if (!searchTerm.trim()) {
@@ -78,8 +86,6 @@ export default function TransactionForm({ onTransactionAdded, isEditMode = false
       setIsLoadingItemSearch(false);
     }
   };
-
-  const debouncedFetchItems = debounce(fetchItemsForSearch, 300);
 
   const handleItemSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const term = e.target.value;

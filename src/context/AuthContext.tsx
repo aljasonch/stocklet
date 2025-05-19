@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import jwt from 'jsonwebtoken';
 
 interface User {
   id: string;
@@ -130,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('touchstart', handleUserActivity);
       window.removeEventListener('scroll', handleUserActivity);
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isLoading]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated && 

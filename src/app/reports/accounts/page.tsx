@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 interface IReceivableData {
@@ -12,11 +12,17 @@ interface IReceivableData {
 }
 
 interface IPayableData {
-  supplierName: string; 
+  supplierName: string;
   initialPayableBalance: number;
   totalPurchases: number;
-  totalPaymentsMade: number; 
+  totalPaymentsMade: number;
   finalPayableBalance: number;
+}
+
+interface CustomerLedgerPayload {
+  customerName: string;
+  initialReceivable?: number;
+  initialPayable?: number;
 }
 
 type ActiveTab = 'receivable' | 'payable';
@@ -26,12 +32,11 @@ export default function AccountsPage() {
   const [reportData, setReportData] = useState<IReceivableData[] | IPayableData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  const [filterName, setFilterName] = useState(''); 
-  const [debouncedFilterName, setDebouncedFilterName] = useState(''); 
+
+  const [filterName, setFilterName] = useState('');
+  const [debouncedFilterName, setDebouncedFilterName] = useState('');
   const [selectedCustomerForBalance, setSelectedCustomerForBalance] = useState('');
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
-  const [debouncedCustomerSearchTerm, setDebouncedCustomerSearchTerm] = useState('');
   const [customerSearchResults, setCustomerSearchResults] = useState<string[]>([]);
   const [isLoadingCustomerSearch, setIsLoadingCustomerSearch] = useState(false);
   const [showCustomerSearchResults, setShowCustomerSearchResults] = useState(false);
@@ -46,21 +51,63 @@ export default function AccountsPage() {
   const [paymentNotes, setPaymentNotes] = useState('');
   const [paymentFormError, setPaymentFormError] = useState<string | null>(null);
   const [paymentFormSuccess, setPaymentFormSuccess] = useState<string | null>(null);
+
+  // Debounce utility
+  const debounce = <T extends unknown[], R>(
+    func: (...args: T) => Promise<R> | R,
+    waitFor: number
+  ) => {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    return (...args: T): Promise<R> => {
+      return new Promise(resolve => {
+        if (timeout) {
+          clearTimeout(timeout);
+        }
+        timeout = setTimeout(() => resolve(func(...args)), waitFor);
+      });
+    };
+  };
+
+  // Debounce filter name
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedFilterName(filterName);
-    }, 500); 
-
+    }, 500);
     return () => clearTimeout(timer);
   }, [filterName]);
-  
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedCustomerSearchTerm(customerSearchTerm);
-    }, 500); 
 
-    return () => clearTimeout(timer);
-  }, [customerSearchTerm]);
+  const fetchDistinctCustomersForSearch = async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setCustomerSearchResults([]);
+      setShowCustomerSearchResults(false);
+      return;
+    }
+    setIsLoadingCustomerSearch(true);
+    try {
+      const response = await fetchWithAuth(`/api/distinct-customers?search=${encodeURIComponent(searchTerm)}&limit=10`);
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || 'Failed to search customers');
+      }
+      const data = await response.json();
+      setCustomerSearchResults(data.customers || []);
+      setShowCustomerSearchResults(true);
+    } catch (err) {
+      console.error("Customer search error:", err);
+      setCustomerSearchResults([]);
+      setError(err instanceof Error ? err.message : 'Failed to search customers');
+    } finally {
+      setIsLoadingCustomerSearch(false);
+    }
+  };
+
+  // Debounced customer search
+  const debouncedFetchCustomers = useCallback(
+    debounce<[string], void>((searchTerm: string) => {
+      fetchDistinctCustomersForSearch(searchTerm);
+    }, 500),
+    [fetchDistinctCustomersForSearch]
+  );
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -85,83 +132,30 @@ export default function AccountsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeTab, debouncedFilterName]); 
+  }, [activeTab, debouncedFilterName]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const debounce = <F extends (...args: any[]) => any>(func: F, waitFor: number) => {
-    let timeout: ReturnType<typeof setTimeout> | null = null;
-    return (...args: Parameters<F>): Promise<ReturnType<F>> => {
-      return new Promise(resolve => {
-        if (timeout) {
-          clearTimeout(timeout);
-        }
-        timeout = setTimeout(() => resolve(func(...args)), waitFor);
-      });
-    };
-  };
-  const fetchDistinctCustomersForSearch = async (searchTerm: string) => {
-    if (!searchTerm.trim()) {
-      setCustomerSearchResults([]);
-      setShowCustomerSearchResults(false);
-      return;
-    }
-    setIsLoadingCustomerSearch(true);
-    try {
-      const response = await fetchWithAuth(`/api/distinct-customers?search=${encodeURIComponent(searchTerm)}&limit=10`);
-      if (!response.ok) throw new Error('Failed to search customers');
-      const data = await response.json();
-      setCustomerSearchResults(data.customers || []);
-      setShowCustomerSearchResults(true);
-    } catch (err) {
-      console.error("Customer search error:", err);
-      setCustomerSearchResults([]);
-    } finally {
-      setIsLoadingCustomerSearch(false);
-    }
-  };
-  
-  useEffect(() => {
-    if (debouncedCustomerSearchTerm && debouncedCustomerSearchTerm !== selectedCustomerForBalance) {
-      fetchDistinctCustomersForSearch(debouncedCustomerSearchTerm);
-    } else if (!debouncedCustomerSearchTerm) {
-      setCustomerSearchResults([]);
-      setShowCustomerSearchResults(false);
-    }
-  }, [debouncedCustomerSearchTerm, selectedCustomerForBalance]); 
-  
-  
   const handleCustomerSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const term = e.target.value;
-    setCustomerSearchTerm(term); 
+    setCustomerSearchTerm(term);
     setSelectedCustomerForBalance('');
-    
+    if (term.trim()) {
+      debouncedFetchCustomers(term);
+    } else {
+      setCustomerSearchResults([]);
+      setShowCustomerSearchResults(false);
+    }
   };
 
   const handleSelectCustomerFromSearch = (customerName: string) => {
     setSelectedCustomerForBalance(customerName);
-    setCustomerSearchTerm(customerName); 
+    setCustomerSearchTerm(customerName);
     setCustomerSearchResults([]);
     setShowCustomerSearchResults(false);
   };
-  
-  useEffect(() => {
-    const fetchInitialCustomers = async () => {
-        setIsLoadingCustomerSearch(true);
-        try {
-            const response = await fetchWithAuth(`/api/distinct-customers?limit=10`);
-            if (!response.ok) throw new Error('Failed to fetch initial customers');
-            const data = await response.json();
-        } catch (err) {
-            console.error("Initial customer fetch error:", err);
-        } finally {
-            setIsLoadingCustomerSearch(false);
-        }
-    };
-  }, []);
-
 
   const handleSetInitialBalance = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,7 +163,6 @@ export default function AccountsPage() {
     setBalanceFormSuccess(null);
 
     const customerToSet = selectedCustomerForBalance || customerSearchTerm.trim();
-    
     if (!customerToSet) {
       setBalanceFormError('Masukkan nama Customer/Supplier.');
       return;
@@ -180,13 +173,13 @@ export default function AccountsPage() {
       return;
     }
 
-    const payload: any = { customerName: customerToSet };
+    const payload: CustomerLedgerPayload = { customerName: customerToSet };
     if (activeTab === 'receivable') {
       payload.initialReceivable = balance;
     } else {
       payload.initialPayable = balance;
     }
-    
+
     try {
       const response = await fetchWithAuth('/api/customer-ledger', {
         method: 'POST',
@@ -197,18 +190,14 @@ export default function AccountsPage() {
         throw new Error(data.message || 'Gagal menyimpan saldo awal.');
       }
       setBalanceFormSuccess(data.message || 'Saldo awal berhasil disimpan.');
-      // Reset form
       setSelectedCustomerForBalance('');
-      setCustomerSearchTerm(''); 
+      setCustomerSearchTerm('');
       setInitialBalanceValue('');
       fetchData();
-    fetchData();
-
     } catch (err: unknown) {
       setBalanceFormError(err instanceof Error ? err.message : 'Terjadi kesalahan.');
     }
   };
-
 
   const renderTable = () => {
     if (isLoading) return <p className="text-center py-4">Memuat data...</p>;
@@ -261,20 +250,20 @@ export default function AccountsPage() {
                       : ((item as IPayableData).finalPayableBalance ?? 0).toLocaleString('id-ID')}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <button
-                    onClick={() => {
-                      setPaymentCustomerName(customerOrSupplierName);
-                      setIsPaymentModalOpen(true);
-                      setPaymentAmount('');
-                      setPaymentDate(new Date().toISOString().split('T')[0]);
-                      setPaymentNotes('');
-                      setPaymentFormError(null);
-                      setPaymentFormSuccess(null);
-                    }}
-                    className="w-full cursor-pointer md:w-auto flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-green-500 border-2 border-green-500 rounded-xl shadow-sm hover:bg-green-600 hover:border-green-600 hover:shadow-md active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 transition-all duration-150"
-                  >
-                    Input Pembayaran
-                  </button>
+                    <button
+                      onClick={() => {
+                        setPaymentCustomerName(customerOrSupplierName);
+                        setIsPaymentModalOpen(true);
+                        setPaymentAmount('');
+                        setPaymentDate(new Date().toISOString().split('T')[0]);
+                        setPaymentNotes('');
+                        setPaymentFormError(null);
+                        setPaymentFormSuccess(null);
+                      }}
+                      className="w-full cursor-pointer md:w-auto flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-green-500 border-2 border-green-500 rounded-xl shadow-sm hover:bg-green-600 hover:border-green-600 hover:shadow-md active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 transition-all duration-150"
+                    >
+                      Input Pembayaran
+                    </button>
                   </td>
                 </tr>
               );
@@ -284,11 +273,12 @@ export default function AccountsPage() {
       </div>
     );
   };
-  
+
   const renderInitialBalanceForm = () => {
     return (
       <form onSubmit={handleSetInitialBalance} className="mt-6 p-6 shadow-md rounded-lg bg-gray-50 space-y-4">
         <h3 className="text-lg font-medium">Atur Saldo Awal {activeTab === 'receivable' ? 'Piutang' : 'Utang'}</h3>
+        {error && <p className="text-sm text-red-500">{error}</p>}
         <div className="relative">
           <label htmlFor="customerSearchBalance" className="block text-sm font-medium text-gray-700">
             Customer/Supplier:
@@ -298,15 +288,19 @@ export default function AccountsPage() {
             id="customerSearchBalance"
             value={customerSearchTerm}
             onChange={handleCustomerSearchChange}
+            onFocus={() => {
+              if (customerSearchTerm.trim() && customerSearchResults.length > 0) {
+                setShowCustomerSearchResults(true);
+              }
+            }}
             placeholder="Ketik untuk mencari atau masukkan nama baru"
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           />
           {isLoadingCustomerSearch && <p className="mt-1 text-xs text-gray-500">Mencari...</p>}
           {showCustomerSearchResults && customerSearchResults.length > 0 && (
-            <ul 
+            <ul
               className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1 max-h-40 overflow-auto"
-
-              onMouseLeave={() => setTimeout(() => setShowCustomerSearchResults(false), 200)} 
+              onMouseLeave={() => setTimeout(() => setShowCustomerSearchResults(false), 200)}
             >
               {customerSearchResults.map((name) => (
                 <li
@@ -320,7 +314,6 @@ export default function AccountsPage() {
             </ul>
           )}
         </div>
-        
         <div>
           <label htmlFor="initialBalance" className="block text-sm font-medium text-gray-700">
             Nominal Saldo Awal {activeTab === 'receivable' ? 'Piutang' : 'Utang'}:
@@ -336,7 +329,7 @@ export default function AccountsPage() {
         </div>
         {balanceFormError && <p className="text-sm text-red-500">{balanceFormError}</p>}
         {balanceFormSuccess && <p className="text-sm text-green-500">{balanceFormSuccess}</p>}
-        <button 
+        <button
           type="submit"
           className="px-4 py-2 bg-[color:var(--primary)] cursor-pointer text-white rounded-md text-sm font-medium"
         >
@@ -345,6 +338,109 @@ export default function AccountsPage() {
       </form>
     );
   };
+
+  function renderPaymentModal() {
+    if (!isPaymentModalOpen) return null;
+
+    const handlePaymentSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setPaymentFormError(null);
+      setPaymentFormSuccess(null);
+
+      const amountNum = parseFloat(paymentAmount);
+      if (isNaN(amountNum) || amountNum <= 0) {
+        setPaymentFormError('Jumlah pembayaran harus angka positif.');
+        return;
+      }
+      if (!paymentDate) {
+        setPaymentFormError('Tanggal pembayaran harus diisi.');
+        return;
+      }
+
+      const payload = {
+        customerName: paymentCustomerName,
+        paymentDate,
+        amount: amountNum,
+        paymentType: activeTab === 'receivable' ? 'receivable_payment' : 'payable_payment',
+        notes: paymentNotes,
+      };
+
+      try {
+        const response = await fetchWithAuth('/api/account-payments', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || 'Gagal menyimpan pembayaran.');
+        }
+        setPaymentFormSuccess(data.message || 'Pembayaran berhasil disimpan.');
+        setIsPaymentModalOpen(false);
+        fetchData();
+      } catch (err: unknown) {
+        setPaymentFormError(err instanceof Error ? err.message : 'Terjadi kesalahan.');
+      }
+    };
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm">
+        <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md space-y-4 border">
+          <h3 className="text-lg font-medium text-gray-900">Input Pembayaran untuk {paymentCustomerName}</h3>
+          <form onSubmit={handlePaymentSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="paymentAmount" className="block text-sm font-medium text-gray-700">Jumlah Pembayaran:</label>
+              <input
+                type="number"
+                id="paymentAmount"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor="paymentDate" className="block text-sm font-medium text-gray-700">Tanggal Pembayaran:</label>
+              <input
+                type="date"
+                id="paymentDate"
+                value={paymentDate}
+                onChange={(e) => setPaymentDate(e.target.value)}
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor="paymentNotes" className="block text-sm font-medium text-gray-700">Catatan (Opsional):</label>
+              <textarea
+                id="paymentNotes"
+                value={paymentNotes}
+                onChange={(e) => setPaymentNotes(e.target.value)}
+                rows={3}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              />
+            </div>
+            {paymentFormError && <p className="text-sm text-red-500">{paymentFormError}</p>}
+            {paymentFormSuccess && <p className="text-sm text-green-500">{paymentFormSuccess}</p>}
+            <div className="flex justify-end space-x-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsPaymentModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 text-sm font-medium"
+              >
+                Simpan Pembayaran
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-4">
@@ -358,7 +454,7 @@ export default function AccountsPage() {
               activeTab === 'receivable'
                 ? 'border-[color:var(--primary)] text-[color:var(--primary)]'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 cursor-pointer'
-            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm `}
+            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
           >
             Piutang (Receivable)
           </button>
@@ -374,7 +470,7 @@ export default function AccountsPage() {
           </button>
         </nav>
       </div>
-      
+
       <div className="mb-4 flex items-end space-x-2">
         <div className="flex-grow">
           <label htmlFor="nameFilter" className="block text-sm font-medium text-gray-700">
@@ -402,96 +498,4 @@ export default function AccountsPage() {
       {isPaymentModalOpen && renderPaymentModal()}
     </div>
   );
-
-  function renderPaymentModal() {
-    if (!isPaymentModalOpen) return null;
-
-    const handlePaymentSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setPaymentFormError(null);
-        setPaymentFormSuccess(null);
-
-        const amountNum = parseFloat(paymentAmount);
-        if (isNaN(amountNum) || amountNum <= 0) {
-            setPaymentFormError('Jumlah pembayaran harus angka positif.');
-            return;
-        }
-        if (!paymentDate) {
-            setPaymentFormError('Tanggal pembayaran harus diisi.');
-            return;
-        }
-
-        const payload = {
-            customerName: paymentCustomerName,
-            paymentDate,
-            amount: amountNum,
-            paymentType: activeTab === 'receivable' ? 'receivable_payment' : 'payable_payment',
-            notes: paymentNotes,
-        };
-
-        try {
-            const response = await fetchWithAuth('/api/account-payments', {
-                method: 'POST',
-                body: JSON.stringify(payload),
-            });
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.message || 'Gagal menyimpan pembayaran.');
-            }
-            setPaymentFormSuccess(data.message || 'Pembayaran berhasil disimpan.');
-            setIsPaymentModalOpen(false);
-            fetchData(); 
-        } catch (err: unknown) {
-            setPaymentFormError(err instanceof Error ? err.message : 'Terjadi kesalahan.');
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm">
-            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md space-y-4 border">
-                <h3 className="text-lg font-medium text-gray-900">Input Pembayaran untuk {paymentCustomerName}</h3>
-                <form onSubmit={handlePaymentSubmit} className="space-y-4">
-                    <div>
-                        <label htmlFor="paymentAmount" className="block text-sm font-medium text-gray-700">Jumlah Pembayaran:</label>
-                        <input
-                            type="number"
-                            id="paymentAmount"
-                            value={paymentAmount}
-                            onChange={(e) => setPaymentAmount(e.target.value)}
-                            required
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="paymentDate" className="block text-sm font-medium text-gray-700">Tanggal Pembayaran:</label>
-                        <input
-                            type="date"
-                            id="paymentDate"
-                            value={paymentDate}
-                            onChange={(e) => setPaymentDate(e.target.value)}
-                            required
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="paymentNotes" className="block text-sm font-medium text-gray-700">Catatan (Opsional):</label>
-                        <textarea
-                            id="paymentNotes"
-                            value={paymentNotes}
-                            onChange={(e) => setPaymentNotes(e.target.value)}
-                            rows={3}
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        />
-                    </div>
-                    {paymentFormError && <p className="text-sm text-red-500">{paymentFormError}</p>}
-                    {paymentFormSuccess && <p className="text-sm text-green-500">{paymentFormSuccess}</p>}
-                    <div className="flex justify-end space-x-3 pt-2">
-                        <button type="button" onClick={() => setIsPaymentModalOpen(false)} className="px-4 py-2 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Batal</button>
-                        <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 text-sm font-medium">Simpan Pembayaran</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-  }
 }
