@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
 interface User {
@@ -11,8 +11,8 @@ interface User {
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (userData: User) => void; // Token no longer passed here
-  logout: () => Promise<void>; // Make logout async
+  login: (userData: User) => void;
+  logout: () => Promise<void>;
   user: User | null; 
 }
 
@@ -25,29 +25,111 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  useEffect(() => {
+  const checkAuthStatus = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Token is in HttpOnly cookie, cannot access directly.
-      // We rely on localStorage for user data to persist UI state.
-      // A dedicated /api/auth/me endpoint would be more robust for checking session validity.
-      const storedUser = localStorage.getItem('stockletUser');
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        setIsAuthenticated(true); // Assume authenticated if user data exists. Actual check happens on API calls.
+      const response = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.user) {
+          localStorage.setItem('stockletUser', JSON.stringify(data.user));
+          setUser(data.user);
+          setIsAuthenticated(true);
+        } else {
+          localStorage.removeItem('stockletUser');
+          setIsAuthenticated(false);
+          setUser(null);
+        }
       } else {
+        localStorage.removeItem('stockletUser');
         setIsAuthenticated(false);
         setUser(null);
       }
     } catch (error) {
-      console.error("AuthContext useEffect error:", error);
-      localStorage.removeItem('stockletUser'); // Only user data in localStorage now
+      console.error("Auth status check/refresh error:", error);
+      localStorage.removeItem('stockletUser');
       setIsAuthenticated(false);
       setUser(null);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('stockletUser');
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+        setIsAuthenticated(true); 
+      } catch {
+        localStorage.removeItem('stockletUser');
+      }
+    }
+    checkAuthStatus(); 
+  }, [checkAuthStatus]);
+    
+  useEffect(() => {
+    if (!isAuthenticated || isLoading) {
+        return;
+    }
+
+    const tokenRefreshInterval = setInterval(() => {
+      if (isAuthenticated) {
+        fetch('/api/auth/refresh', {
+          method: 'POST',
+          credentials: 'include'
+        })
+        .then(response => {
+          if (!response.ok) {
+            console.error('Periodic token refresh failed');
+            setIsAuthenticated(false);
+            setUser(null);
+          }
+          return response.json();
+        })
+        .then(data => {
+          if (data && data.user) {
+            setUser(data.user);
+          }
+        })
+        .catch(error => {
+          console.error('Periodic token refresh error:', error);
+        });
+      }
+    }, 10 * 60 * 1000);
+    
+    const handleUserActivity = () => {
+      if (isAuthenticated) {
+        const lastRefresh = parseInt(localStorage.getItem('lastTokenRefresh') || '0');
+        const now = Date.now();
+        if (now - lastRefresh > 60000) {
+          localStorage.setItem('lastTokenRefresh', now.toString());
+          fetch('/api/auth/refresh', {
+            method: 'POST',
+            credentials: 'include'
+          }).catch(error => {
+            console.error('Activity-based token refresh error:', error);
+          });
+        }
+      }
+    };
+    window.addEventListener('mousedown', handleUserActivity);
+    window.addEventListener('keydown', handleUserActivity);
+    window.addEventListener('touchstart', handleUserActivity);
+    window.addEventListener('scroll', handleUserActivity);
+    
+    return () => {
+      clearInterval(tokenRefreshInterval);
+      window.removeEventListener('mousedown', handleUserActivity);
+      window.removeEventListener('keydown', handleUserActivity);
+      window.removeEventListener('touchstart', handleUserActivity);
+      window.removeEventListener('scroll', handleUserActivity);
+    };
+  }, [isAuthenticated, isLoading]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated && 
@@ -58,29 +140,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [isLoading, isAuthenticated, pathname, router]);
 
-  const login = (userData: User) => { // Token is no longer passed from client-side
+  const login = (userData: User) => {
     if (userData) {
-      // Token is set as HttpOnly cookie by the server.
-      // Client-side only needs to store user data for UI purposes.
       localStorage.setItem('stockletUser', JSON.stringify(userData));
       setUser(userData);
       setIsAuthenticated(true);
       router.push('/'); 
     } else {
-      // This case should ideally not happen if API guarantees userData on successful login
       console.error("Login called without userData"); 
     }
   };
 
   const logout = async () => {
     try {
-      // Call the backend logout endpoint to blacklist token and clear cookie
       await fetch('/api/auth/logout', { method: 'POST' });
     } catch (error) {
       console.error("Logout API call failed:", error);
-      // Still attempt to clear client-side state
     } finally {
-      localStorage.removeItem('stockletUser'); // Only user data in localStorage now
+      localStorage.removeItem('stockletUser'); 
       setIsAuthenticated(false);
       setUser(null);
       router.push('/login');

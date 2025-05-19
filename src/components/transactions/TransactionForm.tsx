@@ -29,33 +29,121 @@ export default function TransactionForm({ onTransactionAdded, isEditMode = false
   const [berat, setBerat] = useState(initialData?.berat?.toString() || '');
   const [harga, setHarga] = useState(initialData?.harga?.toString() || '');
   const [noSJSby, setNoSJSby] = useState(initialData?.noSJSby || '');
-  
-  const [items, setItems] = useState<IItem[]>([]);
-  const [isLoadingItems, setIsLoadingItems] = useState(true);
+
+  const [isLoadingItems, setIsLoadingItems] = useState(true); 
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    const fetchItems = async () => {
-      setIsLoadingItems(true);
-      try {
-        const response = await fetchWithAuth('/api/items');
-        if (!response.ok) throw new Error('Failed to fetch items');
-        const data = await response.json();
-        setItems(data.items || []);
-        if (isEditMode && initialData?.item) {
-            setItemId(getItemIdFromData(initialData.item));
+  const [itemSearchTerm, setItemSearchTerm] = useState('');
+  const [itemSearchResults, setItemSearchResults] = useState<IItem[]>([]);
+  const [isLoadingItemSearch, setIsLoadingItemSearch] = useState(false);
+  const [showItemSearchResults, setShowItemSearchResults] = useState(false);
+  const [selectedItemName, setSelectedItemName] = useState<string>('');
+
+
+  const debounce = <T extends unknown[], R>(
+    func: (...args: T) => R,
+    waitFor: number
+  ) => {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    return (...args: T): Promise<R> => {
+      return new Promise(resolve => {
+        if (timeout) {
+          clearTimeout(timeout);
         }
-      } catch (err) {
-        setError('Could not load items for selection.');
-        console.error(err);
-      } finally {
+        timeout = setTimeout(() => resolve(func(...args)), waitFor);
+      });
+    };
+  };
+  
+  // Explicitly type the debounced function
+  const debouncedFetchItems = debounce<[string], Promise<void>>(
+    (searchTerm: string) => fetchItemsForSearch(searchTerm),
+    300
+  );
+
+  const fetchItemsForSearch = async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setItemSearchResults([]);
+      setShowItemSearchResults(false);
+      return;
+    }
+    setIsLoadingItemSearch(true);
+    try {
+      const response = await fetchWithAuth(`/api/items?search=${encodeURIComponent(searchTerm)}&limit=10`);
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || 'Failed to search items');
+      }
+      const data = await response.json();
+      setItemSearchResults(data.items || []);
+      setShowItemSearchResults(true);
+    } catch (err) {
+      console.error("Item search error:", err);
+      setItemSearchResults([]);
+    } finally {
+      setIsLoadingItemSearch(false);
+    }
+  };
+
+  const handleItemSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const term = e.target.value;
+    setItemSearchTerm(term);
+    if (term) {
+      debouncedFetchItems(term);
+    } else {
+      setItemSearchResults([]);
+      setShowItemSearchResults(false);
+    }
+  };
+
+  const handleSelectItem = (item: IItem) => {
+    setItemId(item._id as string);
+    setSelectedItemName(item.namaBarang);
+    setItemSearchTerm(item.namaBarang); 
+    setItemSearchResults([]);
+    setShowItemSearchResults(false);
+  };
+
+  useEffect(() => {
+    const loadInitialItemDetails = async () => {
+      if (isEditMode && initialData?.item) {
+        const currentItemId = getItemIdFromData(initialData.item);
+        if (currentItemId) {
+          if ((initialData.item as IItem)?.namaBarang) {
+            setSelectedItemName((initialData.item as IItem).namaBarang);
+            setItemSearchTerm((initialData.item as IItem).namaBarang); 
+            setItemId(currentItemId);
+            setIsLoadingItems(false);
+          } else {
+            setIsLoadingItems(true);
+            try {
+              const response = await fetchWithAuth(`/api/items/${currentItemId}`);
+              if (!response.ok) throw new Error('Failed to fetch item details for editing.');
+              const data = await response.json();
+              if (data.item) {
+                setSelectedItemName(data.item.namaBarang);
+                setItemSearchTerm(data.item.namaBarang);
+                setItemId(data.item._id);
+              }
+            } catch (err) {
+              setError('Could not load item details for editing.');
+              console.error(err);
+            } finally {
+              setIsLoadingItems(false);
+            }
+          }
+        } else {
+           setIsLoadingItems(false);
+        }
+      } else {
         setIsLoadingItems(false);
       }
     };
-    fetchItems();
+    loadInitialItemDetails();
   }, [isEditMode, initialData]);
+
 
   useEffect(() => {
     if (isEditMode && initialData) {
@@ -178,15 +266,36 @@ export default function TransactionForm({ onTransactionAdded, isEditMode = false
           <input type="text" id="noSJSby" value={noSJSby} onChange={(e) => setNoSJSby(e.target.value)} className={`mt-1 ${inputStyles}`} disabled={isSubmitting} />
         </div>
 
-        <div className="md:col-span-2">
-          <label htmlFor="item" className={labelStyles}>Barang</label>
-          {isLoadingItems ? <p className="mt-1 text-sm text-[color:var(--foreground)] opacity-75">Loading items...</p> : (
-            <select id="item" value={itemId} onChange={(e) => setItemId(e.target.value)} required className={`mt-1 ${inputStyles}`} disabled={isSubmitting || items.length === 0}>
-              <option value="">Pilih Barang</option>
-              {items.map((item) => (
-                <option key={item._id as string} value={item._id as string}>{item.namaBarang} (Stok: {item.stokSaatIni?.toFixed(2) ?? 'N/A'})</option>
+        <div className="md:col-span-2 relative">
+          <label htmlFor="itemSearch" className={labelStyles}>Barang</label>
+          <input
+            type="text"
+            id="itemSearch"
+            value={itemSearchTerm}
+            onChange={handleItemSearchChange}
+            onFocus={() => { if (itemSearchTerm && itemSearchResults.length > 0) setShowItemSearchResults(true);}}
+            placeholder={isLoadingItems ? "Loading item..." : "Ketik untuk mencari barang..."}
+            className={`mt-1 ${inputStyles}`}
+            disabled={isSubmitting || isLoadingItems}
+            required={!itemId} 
+          />
+          {isLoadingItemSearch && <p className="mt-1 text-xs text-[color:var(--foreground)] opacity-75">Mencari...</p>}
+          
+          {showItemSearchResults && itemSearchResults.length > 0 && (
+            <ul className="absolute z-10 w-full bg-[color:var(--card-bg)] border border-[color:var(--border-color)] rounded-md shadow-lg mt-1 max-h-60 overflow-auto">
+              {itemSearchResults.map((item) => (
+                <li
+                  key={item._id as string}
+                  onClick={() => handleSelectItem(item)}
+                  className="px-3 py-2 hover:bg-[color:var(--background)] cursor-pointer text-sm text-[color:var(--foreground)]"
+                >
+                  {item.namaBarang} (Stok: {item.stokSaatIni?.toFixed(2) ?? 'N/A'})
+                </li>
               ))}
-            </select>
+            </ul>
+          )}
+           {itemId && selectedItemName && !showItemSearchResults && (
+            <p className="mt-1 text-sm text-green-600">Terpilih: {selectedItemName}</p>
           )}
         </div>
 
@@ -208,8 +317,8 @@ export default function TransactionForm({ onTransactionAdded, isEditMode = false
           <p className="text-sm text-green-500">{successMessage}</p>
       )}
 
-      <div className="pt-4"> {/* Increased padding top for separation */}
-        <button type="submit" disabled={isSubmitting || isLoadingItems} className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[color:var(--primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[color:var(--primary)] disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-150 ease-in-out">
+      <div className="pt-4">
+        <button type="submit" disabled={isSubmitting || isLoadingItems} className="w-full cursor-pointer flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[color:var(--primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[color:var(--primary)] disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-150 ease-in-out">
           {isSubmitting ? (
             <>
               <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

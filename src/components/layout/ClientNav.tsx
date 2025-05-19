@@ -26,11 +26,9 @@
       ${pathname === path 
         ? 'font-semibold text-[color:var(--primary)] ' 
         : 'text-[color:var(--foreground)] hover:bg-[color:var(--background)] hover:text-[color:var(--primary)]'      }`;    
-      useEffect(() => {
-      if (isMobileMenuOpen) {
-        setIsMobileMenuOpen(false);
-      }
-    }, [pathname, isMobileMenuOpen]);
+    useEffect(() => {
+      setIsMobileMenuOpen(false);
+    }, [pathname]);
 
     if (isLoading) {
       return (
@@ -97,6 +95,11 @@
                           Laporan Pembelian
                         </span>
                       </Link>
+                      <Link href="/reports/accounts">
+                        <span className={`block px-4 py-2 text-sm ${pathname === '/reports/accounts' ? 'font-semibold text-[color:var(--primary)]' : 'text-[color:var(--foreground)]'} hover:bg-[color:var(--background)] hover:text-[color:var(--primary)]`} role="menuitem">
+                          Laporan Piutang/Utang
+                        </span>
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -146,9 +149,9 @@
               <>
                 <Link href="/items"><span className={mobileNavLinkClasses('/items')} onClick={toggleMobileMenu}>Stok</span></Link>
                 <Link href="/transactions"><span className={mobileNavLinkClasses('/transactions')} onClick={toggleMobileMenu}>Transaksi</span></Link>
-                {/* Mobile Laporan Links - can be simple links or a collapsible section */}
                 <Link href="/reports/sales"><span className={mobileNavLinkClasses('/reports/sales')} onClick={toggleMobileMenu}>Laporan Penjualan</span></Link>
                 <Link href="/reports/purchases"><span className={mobileNavLinkClasses('/reports/purchases')} onClick={toggleMobileMenu}>Laporan Pembelian</span></Link>
+                <Link href="/reports/accounts"><span className={mobileNavLinkClasses('/reports/accounts')} onClick={toggleMobileMenu}>Laporan Piutang/Utang</span></Link>
               </>
             )}
 

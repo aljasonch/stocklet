@@ -1,18 +1,14 @@
-'use client'; // This page uses client-side state for refreshKey
+'use client'; 
 
 import ItemForm from '@/components/items/ItemForm';
 import ItemsList from '@/components/items/ItemsList';
 import { useState } from 'react';
 
-// You might want to fetch initial items via SSR/SSG for better performance/SEO
-// For simplicity, this example relies on client-side fetching in ItemsList,
-// or you could pass initialItems fetched here.
-
 export default function ItemsPage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleItemAdded = () => {
-    setRefreshKey(prevKey => prevKey + 1); // Increment key to trigger list refresh
+    setRefreshKey(prevKey => prevKey + 1); 
   };
 
   return (

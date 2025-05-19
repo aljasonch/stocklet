@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import Transaction, { ITransaction } from '@/models/Transaction';
-import Item, { IItem } from '@/models/Item'; // Import IItem
-import { withAuthStatic, HandlerResult } from '@/lib/authUtils'; // Import HandlerResult
+import Item, { IItem } from '@/models/Item';
+import { withAuthStatic, HandlerResult } from '@/lib/authUtils'; 
 import mongoose from 'mongoose';
 
 interface RouteContext {
@@ -31,13 +31,12 @@ const getItemTransactionsHandler = async (
       return { status: 404, error: 'Item not found.' };
     }
 
-    // Fetch transactions for the specific item AND created by the current user
     const transactions = await Transaction.find({ 
       item: itemId, 
-      createdBy: new mongoose.Types.ObjectId(userId) // Ensure userId is ObjectId for query
+      createdBy: new mongoose.Types.ObjectId(userId)
     })
       .populate<{item: IItem}>('item', 'namaBarang') 
-      .sort({ tanggal: -1 });
+      .sort({ tanggal: 1, createdAt: 1 }); 
 
     return { status: 200, data: { transactions: transactions as ITransaction[] } };
   } catch (error) {

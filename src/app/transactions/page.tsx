@@ -1,4 +1,4 @@
-'use client'; // This page uses client-side state for refreshKey
+'use client'; 
 
 import TransactionForm from '@/components/transactions/TransactionForm';
 import TransactionsList from '@/components/transactions/TransactionsList';
@@ -8,7 +8,7 @@ export default function TransactionsPage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleTransactionAdded = () => {
-    setRefreshKey(prevKey => prevKey + 1); // Increment key to trigger list refresh
+    setRefreshKey(prevKey => prevKey + 1); 
   };
 
   return (

@@ -19,15 +19,39 @@ export async function fetchWithAuth(
       ...options,
       headers,
       signal: controller.signal,
+      credentials: 'include',
     });
     clearTimeout(timeoutId);
 
     if (response.status === 401) {
-      const errorData = await response.json().catch(() => ({ message: 'Unauthorized' }));
-      console.error('Unauthorized access detected by fetchWithAuth:', errorData.message);
-      if (typeof window !== 'undefined') {
+      try {
+        const refreshResponse = await fetch('/api/auth/refresh', {
+          method: 'POST',
+          credentials: 'include',
+        });
+
+        if (refreshResponse.ok) {
+          const retryResponse = await fetch(url, {
+            ...options,
+            headers,
+            credentials: 'include', 
+          });
+          return retryResponse;
+        } else {
+          const errorData = await response.json().catch(() => ({ message: 'Unauthorized' }));
+          console.error('Unauthorized access detected by fetchWithAuth:', errorData.message);
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
+          throw new Error(errorData.message || 'Unauthorized');
+        }
+      } catch (refreshError) {
+        console.error('Token refresh error:', refreshError);
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
+        throw new Error('Session expired. Please log in again.');
       }
-      throw new Error(errorData.message || 'Unauthorized');
     }
 
     if (!response.ok) {

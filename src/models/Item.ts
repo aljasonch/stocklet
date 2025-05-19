@@ -6,7 +6,6 @@ export interface IItem extends Document {
   stokSaatIni: number;
   createdAt: Date;
   updatedAt: Date;
-  // Optional fields for aggregated transaction data
   totalMasuk?: number;
   totalKeluar?: number;
 }
@@ -43,6 +42,9 @@ ItemSchema.pre('save', function (this: IItem, next: (error?: Error) => void) {
   }
   next();
 });
+
+ItemSchema.index({ namaBarang: 'text' }); 
+ItemSchema.index({ createdAt: -1 });
 
 const Item: Model<IItem> = models.Item || mongoose.model<IItem>('Item', ItemSchema);
 

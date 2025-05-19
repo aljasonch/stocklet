@@ -61,7 +61,7 @@ export default function SalesReportPage() {
     if (currentFilters.itemId) queryParams.append('itemId', currentFilters.itemId);
     if (currentFilters.startDate) queryParams.append('startDate', currentFilters.startDate);
     if (currentFilters.endDate) queryParams.append('endDate', currentFilters.endDate);
-    if (currentFilters.noSjType) queryParams.append('noSjType', currentFilters.noSjType); // Pass noSjType
+    if (currentFilters.noSjType) queryParams.append('noSjType', currentFilters.noSjType); 
 
     try {
       const response = await fetchWithAuth(`/api/reports/sales?${queryParams.toString()}`);
@@ -99,7 +99,7 @@ export default function SalesReportPage() {
     if (filters.itemId) queryParams.append('itemId', filters.itemId);
     if (filters.startDate) queryParams.append('startDate', filters.startDate);
     if (filters.endDate) queryParams.append('endDate', filters.endDate);
-    if (filters.noSjType) queryParams.append('noSjType', filters.noSjType); // Pass noSjType for export
+    if (filters.noSjType) queryParams.append('noSjType', filters.noSjType);
 
     window.location.href = `/api/export/sales?${queryParams.toString()}`;
   };
@@ -111,7 +111,7 @@ export default function SalesReportPage() {
         <button
           onClick={handleExport}
           disabled={isLoadingReport || reportData.length === 0}
-          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 transition-colors duration-150 ease-in-out"
+          className="px-4 py-2 cursor-pointer border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 transition-colors duration-150 ease-in-out"
         >
           Ekspor ke Excel
         </button>

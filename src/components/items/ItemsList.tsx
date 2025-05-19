@@ -3,21 +3,29 @@
 import { IItem } from '@/models/Item';
 import { useEffect, useState } from 'react';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
-import Link from 'next/link'; // Added Link
+import Link from 'next/link'; 
 
 interface ItemsListProps {
   initialItems?: IItem[]; 
   refreshKey?: number; 
 }
 
-export default function ItemsList({ initialItems: initialItemsProp, refreshKey }: ItemsListProps) { // Renamed initialItems to initialItemsProp to avoid conflict
+export default function ItemsList({ initialItems: initialItemsProp, refreshKey }: ItemsListProps) {
   const [items, setItems] = useState<IItem[]>(initialItemsProp || []);
   const [isLoading, setIsLoading] = useState(!initialItemsProp);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalItems, setTotalItems] = useState(0);
-  const itemsPerPage = 10; // Or make this configurable
+  const itemsPerPage = 6; 
+
+  const [adjustingItemId, setAdjustingItemId] = useState<string | null>(null);
+  const [currentItemForModal, setCurrentItemForModal] = useState<IItem | null>(null);
+  const [adjustmentType, setAdjustmentType] = useState<'set' | 'add' | 'subtract'>('add');
+  const [adjustmentValue, setAdjustmentValue] = useState<string>('');
+  const [adjustmentError, setAdjustmentError] = useState<string | null>(null);
+  const [isStockModalOpen, setIsStockModalOpen] = useState(false);
+
 
   const fetchItems = async (pageToFetch: number) => {
     setIsLoading(true);
@@ -42,25 +50,17 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
   };
 
   useEffect(() => {
-    // If initialItemsProp are provided (e.g., from SSR/SSG), use them for the first page.
-    // Otherwise, or if refreshKey changes, fetch the current page.
     if (initialItemsProp && initialItemsProp.length > 0 && currentPage === 1 && (refreshKey === undefined || refreshKey === 0)) {
-        // This logic might need refinement if initialItemsProp represents a specific page other than 1
-        // For now, assume initialItemsProp is for page 1 if provided.
-        // If API returns pagination data with initialItemsProp, that would be better.
-        // For simplicity, we'll just fetch if refreshKey is used or if not on page 1.
-        setIsLoading(false); // Assume initialItemsProp are loaded
-        // Potentially set totalPages if initialItemsProp came with pagination info
+        setIsLoading(false);
     } else {
         fetchItems(currentPage);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, refreshKey]); // Removed initialItemsProp, items.length from deps to control fetch via currentPage & refreshKey
+  }, [currentPage, refreshKey]);
 
-  // Effect to reset to page 1 when refreshKey changes significantly (e.g., after adding an item)
   useEffect(() => {
-    if (refreshKey && refreshKey > 0) { // Assuming refreshKey increments
-        setCurrentPage(1); // This will trigger the fetchItems effect for page 1
+    if (refreshKey && refreshKey > 0) { 
+        setCurrentPage(1);
     }
   }, [refreshKey]);
 
@@ -81,13 +81,12 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
     return (
       <>
         <p className={themedTextMuted}>No items found.</p>
-        {/* Still show pagination if on a page > 1 and no items, allowing to go back */}
         {totalPages > 1 && !isLoading && (
           <div className="mt-6 flex justify-center items-center space-x-3">
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1 || isLoading}
-              className="px-4 py-2 text-sm font-medium rounded-md border border-[color:var(--border-color)] bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-sm font-medium rounded-md bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Previous
             </button>
@@ -97,7 +96,7 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
             <button
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages || isLoading}
-              className="px-4 py-2 text-sm font-medium rounded-md border border-[color:var(--border-color)] bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-sm font-medium rounded-md bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
             </button>
@@ -122,20 +121,20 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
               </p>
               <div className="ml-2 flex-shrink-0 flex">
                 <p className="px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                  Stok: {item.stokSaatIni?.toFixed(2) ?? 'N/A'}
+                  Stok: {item.stokSaatIni?.toFixed(0) ?? 'N/A'}
                 </p>
               </div>
             </div>
             <div className="mt-2.5 sm:flex sm:justify-between">
               <div className="sm:flex">
                 <p className="flex items-center text-sm text-[color:var(--foreground)] opacity-75">
-                  Stok: {item.stokSaatIni?.toFixed(2) ?? 'N/A'}
+                  Stok: {item.stokSaatIni?.toFixed(0) ?? 'N/A'}
                 </p>
                 <p className="flex items-center text-sm text-[color:var(--foreground)] opacity-75 sm:ml-4">
-                  Masuk: {item.totalMasuk?.toFixed(2) ?? '0.00'}
+                  Masuk: {item.totalMasuk?.toFixed(0) ?? '0'}
                 </p>
                 <p className="flex items-center text-sm text-[color:var(--foreground)] opacity-75 sm:ml-4">
-                  Keluar: {item.totalKeluar?.toFixed(2) ?? '0.00'}
+                  Keluar: {item.totalKeluar?.toFixed(0) ?? '0'}
                 </p>
               </div>
               <div className="mt-2 flex items-center text-sm text-[color:var(--foreground)] opacity-75 sm:mt-0 sm:ml-4">
@@ -169,7 +168,7 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
                       } catch (err: unknown) {
                         alert(`Error: ${err instanceof Error ? err.message : 'An unknown error occurred.'}`);
                       }
-                    } else if (newName !== null) { // Only show alert if prompt was not cancelled
+                    } else if (newName !== null) { 
                         alert("Nama baru tidak valid atau sama dengan nama lama.");
                     }
                   }}
@@ -198,39 +197,17 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
                   Hapus
                 </button>
                 <button
-                  onClick={async () => {
-                    const type = window.prompt("Masukkan tipe penyesuaian: 'set', 'add', atau 'subtract'", "add");
-                    if (!type || !['set', 'add', 'subtract'].includes(type.toLowerCase())) {
-                      if (type !== null) alert("Tipe penyesuaian tidak valid.");
-                      return;
-                    }
-                    const adjustmentStr = window.prompt(`Masukkan jumlah untuk ${type.toLowerCase()} stok (angka):`);
-                    if (adjustmentStr === null) return; 
-                    const adjustment = parseFloat(adjustmentStr);
-                    if (isNaN(adjustment)) {
-                      alert("Jumlah penyesuaian harus berupa angka.");
-                      return;
-                    }
-
-                    try {
-                      const response = await fetchWithAuth(`/api/items/${item._id}/adjust-stock`, {
-                        method: 'POST',
-                        body: JSON.stringify({ adjustment, type: type.toLowerCase() }),
-                      });
-                      if (!response.ok) {
-                        const data = await response.json();
-                        throw new Error(data.message || 'Gagal menyesuaikan stok.');
-                      }
-                      const updatedItemData = await response.json();
-                      setItems(prev => prev.map(i => i._id === item._id ? updatedItemData.item : i));
-                      alert('Stok berhasil disesuaikan.');
-                    } catch (err: unknown) {
-                      alert(`Error: ${err instanceof Error ? err.message : 'An unknown error occurred.'}`);
-                    }
+                  onClick={() => {
+                    setAdjustingItemId(item._id as string);
+                    setCurrentItemForModal(item);
+                    setAdjustmentType('add');
+                    setAdjustmentValue('');
+                    setAdjustmentError(null);
+                    setIsStockModalOpen(true);
                   }}
                   className="text-[color:var(--primary)] cursor-pointer hover:opacity-75 font-medium transition-colors duration-150"
                 >
-                  Adjust Stok
+                  Sesuaikan Stok
                 </button>
               </div>
             </div>
@@ -239,12 +216,120 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
       </ul>
     </div>
 
+    {isStockModalOpen && currentItemForModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
+        <div className="bg-[color:var(--card-bg)] p-6 rounded-lg shadow-xl border border-[color:var(--border-color)] w-full max-w-md">
+          <h3 className="text-lg font-semibold text-[color:var(--foreground)] mb-4">
+            Sesuaikan Stok: {currentItemForModal.namaBarang}
+          </h3>
+          {adjustmentError && <p className="text-sm text-red-500 mb-3">{adjustmentError}</p>}
+          
+          <div className="mb-4">
+            <span className="text-sm font-medium text-[color:var(--foreground)] opacity-90 block mb-2">Tipe Penyesuaian:</span>
+            <div className="flex items-center space-x-4">
+              {(['add', 'subtract', 'set'] as const).map((type) => (
+                <label key={type} className="flex items-center space-x-1.5 text-sm text-[color:var(--foreground)] cursor-pointer">
+                  <input
+                    type="radio"
+                    name={`adjustmentType-${currentItemForModal._id}`}
+                    value={type}
+                    checked={adjustmentType === type}
+                    onChange={() => {
+                      setAdjustmentType(type);
+                      setAdjustmentError(null);
+                    }}
+                    className="form-radio h-4 w-4 text-[color:var(--primary)] border-[color:var(--border-color)] focus:ring-2 focus:ring-[color:var(--primary-focus)]"
+                  />
+                  <span>{type === 'add' ? 'Tambah' : type === 'subtract' ? 'Kurang' : 'Atur'}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <label htmlFor="adjustmentValue" className="text-sm font-medium text-[color:var(--foreground)] opacity-90 block mb-2">
+              Jumlah:
+            </label>
+            <input
+              type="number"
+              id="adjustmentValue"
+              placeholder="Masukkan jumlah"
+              value={adjustmentValue}
+              onChange={(e) => {
+                setAdjustmentValue(e.target.value);
+                setAdjustmentError(null);
+              }}
+              className="w-full px-3 py-2 border border-[color:var(--border-color)] rounded-md text-sm focus:ring-1 focus:ring-[color:var(--primary)] focus:border-[color:var(--primary)] bg-[color:var(--input-bg)] text-[color:var(--foreground)] placeholder-[color:var(--placeholder-text)]"
+            />
+          </div>
+
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={() => {
+                setIsStockModalOpen(false);
+                setAdjustingItemId(null);
+                setCurrentItemForModal(null);
+                setAdjustmentValue('');
+                setAdjustmentError(null);
+              }}
+              className="px-4 py-2 text-sm font-medium rounded-md border border-[color:var(--border-color)] bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)] transition-colors"
+            >
+              Batal
+            </button>
+            <button
+              onClick={async () => {
+                if (!adjustingItemId) return;
+                setAdjustmentError(null);
+                const value = parseFloat(adjustmentValue);
+                if (isNaN(value)) {
+                  setAdjustmentError("Jumlah harus berupa angka.");
+                  return;
+                }
+                if (adjustmentType !== 'set' && value <= 0) {
+                  setAdjustmentError("Jumlah untuk 'Tambah' atau 'Kurang' harus lebih besar dari 0.");
+                  return;
+                }
+                if (adjustmentType === 'set' && value < 0) {
+                  setAdjustmentError("Jumlah untuk 'Atur' tidak boleh negatif.");
+                  return;
+                }
+
+                try {
+                  const response = await fetchWithAuth(`/api/items/${adjustingItemId}/adjust-stock`, {
+                    method: 'POST',
+                    body: JSON.stringify({ adjustment: value, type: adjustmentType }),
+                  });
+                  if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.message || 'Gagal menyesuaikan stok.');
+                  }
+                  const updatedItemData = await response.json();
+                  setItems(prev => prev.map(i => (i._id === adjustingItemId ? updatedItemData.item : i)));
+                  setIsStockModalOpen(false);
+                  setAdjustingItemId(null);
+                  setCurrentItemForModal(null);
+                  setAdjustmentValue('');
+                  alert('Stok berhasil disesuaikan.');
+                } catch (err: unknown) {
+                  const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+                  setAdjustmentError(errorMessage);
+                }
+              }}
+              className="px-4 py-2 text-sm font-medium rounded-md bg-[color:var(--primary)] text-[color:var(--primary-foreground)] hover:bg-[color:var(--primary-hover)] transition-colors"
+            >
+              Simpan
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     {totalPages > 0 && (
       <div className="mt-6 flex justify-center items-center space-x-3">
         <button
           onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
           disabled={currentPage === 1 || isLoading}
-          className="px-4 py-2 text-sm font-medium rounded-md border border-[color:var(--border-color)] bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 text-sm cursor-pointer font-medium rounded-md bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Previous
         </button>
@@ -254,7 +339,7 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
         <button
           onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
           disabled={currentPage === totalPages || isLoading}
-          className="px-4 py-2 text-sm font-medium rounded-md border border-[color:var(--border-color)] bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 text-sm cursor-pointer font-medium rounded-md bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Next
         </button>

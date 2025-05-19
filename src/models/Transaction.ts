@@ -92,6 +92,16 @@ TransactionSchema.pre<ITransaction>('save', function (this: ITransaction, next: 
   next();
 });
 
+TransactionSchema.index({ item: 1 });
+TransactionSchema.index({ 
+  createdBy: 1, 
+  tanggal: -1 
+});
+TransactionSchema.index({
+  tipe: 1,
+  tanggal: -1
+});
+
 TransactionSchema.post<ITransaction>('save', async function (doc: ITransaction, next: (error?: Error) => void) { 
   try {
     const item = await mongoose.model<IItem>('Item').findById(doc.item);
