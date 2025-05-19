@@ -23,13 +23,12 @@ interface UpdateTransactionRequestBody {
   noSJSby?: string;
 }
 
-// GET a single transaction
 const getSingleTransactionHandler = async (
   req: NextRequest,
   context: RouteContext,
   userId: string,
-  _userEmail: string, // Add userEmail
-  _jti: string // Add jti
+  _userEmail: string,
+  _jti: string
 ): Promise<HandlerResult> => {
   await dbConnect();
   const id = context.params.id;
@@ -52,13 +51,12 @@ const getSingleTransactionHandler = async (
   }
 };
 
-// UPDATE a transaction
 const updateTransactionHandler = async (
   req: NextRequest,
   context: RouteContext,
   userId: string,
-  _userEmail: string, // Add userEmail
-  _jti: string // Add jti
+  _userEmail: string, 
+  _jti: string
 ): Promise<HandlerResult> => {
   await dbConnect();
   const transactionId = context.params.id;
@@ -89,7 +87,6 @@ const updateTransactionHandler = async (
     }
     const currentTargetItem = newItemDoc as IItem;
 
-    // Revert stock changes from the old transaction state
     const originalItemDoc = await Item.findById(oldTransaction.item as mongoose.Types.ObjectId);
     if (originalItemDoc) {
       if (oldTransaction.tipe === TransactionType.PENJUALAN) {
@@ -100,17 +97,13 @@ const updateTransactionHandler = async (
       await originalItemDoc.save();
     }
 
-    // Apply stock changes for the new transaction state
     if (tipe === TransactionType.PENJUALAN) {
-      // Ensure _id is treated as ObjectId for comparison
       const originalItemId = originalItemDoc?._id as mongoose.Types.ObjectId | undefined;
       const currentTargetItemId = currentTargetItem._id as mongoose.Types.ObjectId;
 
       if (currentTargetItem.stokSaatIni < berat && !(originalItemId && originalItemId.equals(currentTargetItemId) && (originalItemDoc!.stokSaatIni + oldTransaction.berat) >= berat) ) {
-        // Re-save original item's stock if it was changed and transaction fails
-        if (originalItemDoc && originalItemId && !originalItemId.equals(currentTargetItemId)) { // if item changed, originalItemDoc is already reverted
-             // no action needed as originalItemDoc was saved
-        } else if (originalItemDoc) { // if item is same, we need to put its stock back to pre-revert state
+        if (originalItemDoc && originalItemId && !originalItemId.equals(currentTargetItemId)) { 
+        } else if (originalItemDoc) {
             if (oldTransaction.tipe === TransactionType.PENJUALAN) originalItemDoc.stokSaatIni -= oldTransaction.berat;
             else if (oldTransaction.tipe === TransactionType.PEMBELIAN) originalItemDoc.stokSaatIni += oldTransaction.berat;
             await originalItemDoc.save();
@@ -123,7 +116,6 @@ const updateTransactionHandler = async (
     }
     await currentTargetItem.save();
     
-    // Update transaction fields
     oldTransaction.tanggal = typeof tanggal === 'string' ? new Date(tanggal) : tanggal;
     oldTransaction.tipe = tipe;
     oldTransaction.customer = customer;
@@ -150,13 +142,12 @@ const updateTransactionHandler = async (
   }
 };
 
-// DELETE a transaction
 const deleteTransactionHandler = async (
   req: NextRequest,
   context: RouteContext,
   userId: string,
-  _userEmail: string, // Add userEmail
-  _jti: string // Add jti
+  _userEmail: string,
+  _jti: string
 ): Promise<HandlerResult> => {
   await dbConnect();
   const transactionId = context.params.id;
@@ -172,7 +163,6 @@ const deleteTransactionHandler = async (
       return { status: 404, error: 'Transaction not found or not owned by user.' };
     }
 
-    // Adjust stock back
     const item = await Item.findById(transactionToDelete.item);
     if (item) {
       if (transactionToDelete.tipe === TransactionType.PENJUALAN) {

@@ -52,19 +52,24 @@ const postItemHandler = async (
 
 const getItemHandler = async (
   req: NextRequest,
-  _context: { params: Record<string, never> }, // Add context
-  _userId: string, // Add userId
-  _userEmail: string, // Add userEmail
-  _jti: string // Add jti
+  _context: { params: Record<string, never> },
+  _userId: string,
+  _userEmail: string, 
+  _jti: string
 ): Promise<HandlerResult> => {
   await dbConnect();
 
   try {
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const limit = parseInt(searchParams.get('limit') || '6', 10);
+    const searchQuery = searchParams.get('search') || '';
     const skip = (page - 1) * limit;
-    const baseMatchQuery = {};
+    
+    const baseMatchQuery: mongoose.FilterQuery<IItem> = {};
+    if (searchQuery) {
+      baseMatchQuery.namaBarang = { $regex: searchQuery, $options: 'i' }; 
+    }
 
     const itemsPipeline: PipelineStage[] = [ 
       { $match: baseMatchQuery },

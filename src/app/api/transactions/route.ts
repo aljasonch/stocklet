@@ -43,12 +43,13 @@ const postHandler = async (
       return { status: 404, error: 'Item not found.' };
     }
 
-    if (tipe === TransactionType.PENJUALAN && item.stokSaatIni < berat) {
-      return { 
-        status: 400, 
-        error: `Stok tidak mencukupi untuk ${item.namaBarang}. Stok saat ini: ${item.stokSaatIni} kg.` 
-      };
-    }
+    // Removed stock check to allow transactions even if stock is zero or negative.
+    // if (tipe === TransactionType.PENJUALAN && item.stokSaatIni < berat) {
+    //   return { 
+    //     status: 400, 
+    //     error: `Stok tidak mencukupi untuk ${item.namaBarang}. Stok saat ini: ${item.stokSaatIni} kg.` 
+    //   };
+    // }
 
     const totalHarga = berat * harga;
 
@@ -94,18 +95,12 @@ const getHandler = async (
   await dbConnect();
 
   try {
-    // userId is now passed by withAuthStatic
-    // if (!userId) { // This check is now done by withAuthStatic
-    //   return { status: 401, error: 'Unauthorized' };
-    // }
-
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const limit = parseInt(searchParams.get('limit') || '8', 10);
     const skip = (page - 1) * limit;
     const tipe = searchParams.get('tipe') as TransactionType | null;
 
-    // Base query includes user filtering
     const queryOptions: mongoose.FilterQuery<ITransaction> = { createdBy: userId };
 
     if (tipe && Object.values(TransactionType).includes(tipe)) {
@@ -114,7 +109,7 @@ const getHandler = async (
 
     const transactions = await Transaction.find(queryOptions)
       .populate<{item: IItem}>('item', 'namaBarang')
-      .sort({ tanggal: -1, createdAt: -1 })
+      .sort({ tanggal: 1, createdAt: 1 }) 
       .skip(skip)
       .limit(limit);
 

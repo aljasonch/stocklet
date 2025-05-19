@@ -5,7 +5,7 @@ import { ITransaction } from '@/models/Transaction';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { fetchWithAuth } from '@/lib/fetchWithAuth'; // Import fetchWithAuth
+import { fetchWithAuth } from '@/lib/fetchWithAuth'; 
 
 export default function EditTransactionPage() {
   const router = useRouter();

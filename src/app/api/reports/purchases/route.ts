@@ -16,10 +16,10 @@ interface PurchaseReportMatchQuery {
 
 const getPurchaseReportHandler = async (
   req: NextRequest,
-  context: { params: Record<string, never> }, // Corrected context type
+  context: { params: Record<string, never> }, 
   userId: string,
-  _userEmail: string, // Add userEmail
-  _jti: string // Add jti
+  _userEmail: string, 
+  _jti: string
 ): Promise<HandlerResult> => {
   await dbConnect();
 
@@ -66,7 +66,7 @@ const getPurchaseReportHandler = async (
 
     const purchaseReport = await Transaction.find(matchQuery)
       .populate<{item: IItem}>('item', 'namaBarang')
-      .sort({ tanggal: -1 });
+      .sort({ tanggal: 1, createdAt: 1 });
 
     return { status: 200, data: { purchaseReport: purchaseReport as ITransaction[] } };
   } catch (error) {

@@ -3,13 +3,12 @@ import dbConnect from '@/lib/dbConnect';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { randomUUID } from 'crypto'; // For JTI
+import { randomUUID } from 'crypto'; 
 
 const JWT_ISSUER = 'stocklet-app';
 const JWT_AUDIENCE = 'stocklet-users';
-const JWT_EXPIRY = '15m'; // For token payload
-const COOKIE_MAX_AGE = 15 * 60; // 15 minutes in seconds for cookie
-
+const JWT_EXPIRY = '15m';
+const COOKIE_MAX_AGE = 15 * 60;
 export async function POST(req: NextRequest) {
   await dbConnect();
 
@@ -28,7 +27,7 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json(
         { message: 'Invalid credentials.' },
-        { status: 401 } // Unauthorized
+        { status: 401 } 
       );
     }
 
@@ -41,18 +40,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // // Placeholder for JWT generation
-    // const token = jwt.sign(
-    //   { userId: user._id, email: user.email },
-    //   process.env.JWT_SECRET || 'your-secret-key', // Store secret in .env.local
-    //   { expiresIn: '1h' }
-    // );
-
     const jti = randomUUID();
     const tokenPayload = {
       userId: user._id,
       email: user.email,
-      jti, // JWT ID
+      jti, 
     };
 
     const token = jwt.sign(
@@ -65,7 +57,6 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    // Instead of sending token in body, set it in an HttpOnly cookie
     const response = NextResponse.json(
       {
         message: 'Login successful.',
@@ -73,7 +64,6 @@ export async function POST(req: NextRequest) {
           id: user._id,
           email: user.email,
         }
-        // Token is no longer sent in the body
       },
       { status: 200 }
     );
@@ -81,7 +71,7 @@ export async function POST(req: NextRequest) {
     response.cookies.set('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax', // Using 'lax' is a common recommendation
+      sameSite: 'lax', 
       maxAge: COOKIE_MAX_AGE, 
       path: '/',
     });

@@ -11,7 +11,7 @@ interface FilterState {
   itemId?: string;
   startDate?: string;
   endDate?: string;
-  noSjType?: 'all' | 'noSJ' | 'noSJSby'; // Added for No. SJ filter
+  noSjType?: 'all' | 'noSJ' | 'noSJSby';
 }
 
 interface SalesReportFiltersProps {
@@ -19,7 +19,7 @@ interface SalesReportFiltersProps {
   items: IItem[];
   isLoadingItems: boolean;
   customerLabel?: string; 
-  title?: string; // Added optional title prop
+  title?: string; 
 }
 
 export default function SalesReportFilters({ 
@@ -27,7 +27,7 @@ export default function SalesReportFilters({
   items, 
   isLoadingItems, 
   customerLabel = "Customer", 
-  title = "Filter Laporan Penjualan" // Default title
+  title = "Filter Laporan Penjualan" 
 }: SalesReportFiltersProps) {
   const [view, setView] = useState<'monthly' | 'overall' | 'custom_range'>('overall');
   const currentYear = new Date().getFullYear();
@@ -72,7 +72,7 @@ export default function SalesReportFilters({
   }, []);
 
   const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
-  const formElementStyles = "appearance-none block w-full px-3 py-2.5 border border-[color:var(--border-color)] rounded-md shadow-sm placeholder-[color:var(--foreground)] placeholder-opacity-50 focus:outline-none focus:ring-2 focus:ring-[color:var(--primary)] focus:border-[color:var(--primary)] sm:text-sm bg-[color:var(--card-bg)] text-[color:var(--foreground)] transition-all duration-150 ease-in-out";
+  const formElementStyles = "appearance-none block cursor-pointer hover:bg-grey w-full px-3 py-2.5 border border-[color:var(--border-color)] rounded-md shadow-sm placeholder-[color:var(--foreground)] placeholder-opacity-50 sm:text-sm bg-[color:var(--card-bg)] text-[color:var(--foreground)] transition-all duration-150 ease-in-out";
   const labelStyles = "block text-sm font-medium text-[color:var(--foreground)] opacity-90 mb-1";
 
   return (
@@ -173,7 +173,7 @@ export default function SalesReportFilters({
       </div>
       
       <div className="pt-2">
-        <button type="submit" className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[color:var(--primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[color:var(--primary)] disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-150 ease-in-out">
+        <button type="submit" className="w-full flex cursor-pointer justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[color:var(--primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[color:var(--primary)] disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-150 ease-in-out">
           Terapkan Filter
         </button>
       </div>

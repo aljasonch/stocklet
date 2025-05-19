@@ -2,7 +2,7 @@
 
 import { ITransaction } from '@/models/Transaction';
 import { TransactionType } from '@/types/enums';
-import { useEffect, useState } from 'react'; // Removed useMemo
+import { useEffect, useState } from 'react'; 
 import Link from 'next/link';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
@@ -13,14 +13,14 @@ interface TransactionsListProps {
 type FilterType = 'ALL' | TransactionType.PENJUALAN | TransactionType.PEMBELIAN;
 
 export default function TransactionsList({ refreshKey }: TransactionsListProps) {
-  const [transactions, setTransactions] = useState<ITransaction[]>([]); // This will now hold the paginated & filtered list
+  const [transactions, setTransactions] = useState<ITransaction[]>([]); 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<FilterType>('ALL');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalItems, setTotalItems] = useState(0);
-  const itemsPerPage = 10; // Or make this configurable
+  const itemsPerPage = 8
 
   const fetchTransactions = async (pageToFetch: number, currentFilterType: FilterType) => {
     setIsLoading(true);
@@ -48,19 +48,23 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
     }
   };
 
-  useEffect(() => {
-    fetchTransactions(currentPage, filterType);
-  }, [currentPage, filterType, refreshKey]);
+  const handleFilterTypeChange = (newFilterType: FilterType) => {
+    setFilterType(newFilterType);
+    setCurrentPage(1); 
+  };
 
   useEffect(() => {
-    if (refreshKey && refreshKey > 0) { 
-        setCurrentPage(1);
+    fetchTransactions(currentPage, filterType);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, filterType, refreshKey]); 
+
+
+  useEffect(() => {
+    if (refreshKey && refreshKey > 0) {
+        setCurrentPage(1); 
     }
   }, [refreshKey]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filterType]);
 
   const themedTextMuted = "text-center text-[color:var(--foreground)] opacity-75 py-4";
   const themedTextError = "text-center text-red-600";
@@ -90,19 +94,19 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
       <>
         <div className="mb-4 flex space-x-2">
           <button
-            onClick={() => setFilterType('ALL')} 
+            onClick={() => handleFilterTypeChange('ALL')}
             className={`px-4 py-2 rounded-md cursor-pointer text-sm font-medium transition-colors ${filterType === 'ALL' ? 'bg-[color:var(--primary)] text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
           >
             Semua
           </button>
           <button
-            onClick={() => setFilterType(TransactionType.PENJUALAN)}
+            onClick={() => handleFilterTypeChange(TransactionType.PENJUALAN)}
             className={`px-4 py-2 rounded-md cursor-pointer text-sm font-medium transition-colors ${filterType === TransactionType.PENJUALAN ? 'bg-red-500 text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
           >
             Penjualan
           </button>
           <button
-            onClick={() => setFilterType(TransactionType.PEMBELIAN)}
+            onClick={() => handleFilterTypeChange(TransactionType.PEMBELIAN)}
             className={`px-4 py-2 rounded-md cursor-pointer text-sm font-medium transition-colors ${filterType === TransactionType.PEMBELIAN ? 'bg-green-500 text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)]  text-[color:var(--foreground)]'}`}
           >
             Pembelian
@@ -116,7 +120,7 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1 || isLoading}
-              className="px-4 py-2 text-sm font-medium rounded-md border border-[color:var(--border-color)] bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-sm cursor-pointer font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Previous
             </button>
@@ -126,7 +130,7 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
             <button
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages || isLoading}
-              className="px-4 py-2 text-sm font-medium rounded-md border border-[color:var(--border-color)] bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-sm cursor-pointer font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
             </button>
@@ -146,19 +150,19 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
     <div className={`mt-6 transition-opacity duration-500 ease-in-out ${isLoading && transactions.length === 0 ? 'opacity-0' : 'opacity-100'}`}>
       <div className="mb-4 flex space-x-2">
         <button
-          onClick={() => setFilterType('ALL')} 
+          onClick={() => handleFilterTypeChange('ALL')}
           className={`px-4 py-2 rounded-md cursor-pointer text-sm font-medium transition-colors ${filterType === 'ALL' ? 'bg-[color:var(--primary)] text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
         >
           Semua
         </button>
         <button
-          onClick={() => setFilterType(TransactionType.PENJUALAN)}
+          onClick={() => handleFilterTypeChange(TransactionType.PENJUALAN)}
           className={`px-4 py-2 rounded-md cursor-pointer text-sm font-medium transition-colors ${filterType === TransactionType.PENJUALAN ? 'bg-red-500 text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
         >
           Penjualan
         </button>
         <button
-          onClick={() => setFilterType(TransactionType.PEMBELIAN)}
+          onClick={() => handleFilterTypeChange(TransactionType.PEMBELIAN)}
           className={`px-4 py-2 rounded-md cursor-pointer text-sm font-medium transition-colors ${filterType === TransactionType.PEMBELIAN ? 'bg-green-500 text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] text-[color:var(--foreground)]'}`}
         >
           Pembelian
@@ -246,7 +250,7 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
         <button
           onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
           disabled={currentPage === 1 || isLoading}
-          className="px-4 py-2 text-sm font-medium rounded-md cursor-pointer border border-[color:var(--border-color)] bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 text-sm font-medium rounded-md cursor-pointer bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Previous
         </button>
@@ -256,7 +260,7 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
         <button
           onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
           disabled={currentPage === totalPages || isLoading}
-          className="px-4 py-2 text-sm font-medium rounded-md cursor-pointer border border-[color:var(--border-color)] bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 text-sm font-medium rounded-md cursor-pointer bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Next
         </button>
