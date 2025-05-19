@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { Document, Types } from 'mongoose';
 import dbConnect from '@/lib/dbConnect';
 import Transaction from '@/models/Transaction';
 import CustomerLedger from '@/models/CustomerLedger';
@@ -19,11 +20,11 @@ const getDistinctCustomersHandler = async (
     const searchQuery = searchParams.get('search') || '';
     const limitParam = searchParams.get('limit');
     const limit = limitParam ? parseInt(limitParam, 10) : undefined;
-    const transactionMatchCondition: mongoose.FilterQuery<any> = {
+    const transactionMatchCondition: mongoose.FilterQuery<Document> & { customer?: { $regex: RegExp } } = {
       createdBy: new mongoose.Types.ObjectId(userId),
     };
 
-    const ledgerMatchCondition: mongoose.FilterQuery<any> = {
+    const ledgerMatchCondition: mongoose.FilterQuery<Document> & { customerName?: { $regex: RegExp } } = {
       createdBy: new mongoose.Types.ObjectId(userId),
     };
 

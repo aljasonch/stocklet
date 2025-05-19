@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import CustomerLedger, { ICustomerLedger } from '@/models/CustomerLedger';
 import { withAuthStatic, HandlerResult } from '@/lib/authUtils';

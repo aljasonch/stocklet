@@ -19,7 +19,7 @@ export default function TokenRefreshTest() {
       });
       
       if (response.ok) {
-        const data = await response.json();
+        const _data = await response.json();
         setRefreshStatus('Refresh successful');
         setLastRefreshTime(new Date().toLocaleTimeString());
       } else {
@@ -36,8 +36,8 @@ export default function TokenRefreshTest() {
       const response = await fetchWithAuth('/api/items');
       
       if (response.ok) {
-        const data = await response.json();
-        setTestApiCallResult(`API call successful: ${data.items?.length || 0} items retrieved`);
+        const _data = await response.json();
+        setTestApiCallResult(`API call successful: ${_data.items?.length || 0} items retrieved`);
       } else {
         setTestApiCallResult(`API call failed: ${response.status}`);
       }

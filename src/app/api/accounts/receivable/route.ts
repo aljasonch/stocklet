@@ -31,7 +31,8 @@ const getReceivableReportHandler = async (
       },
     };
     if (escapedCustomerNameFilter) {
-      (matchStage.$match as any).customer = { $regex: new RegExp(escapedCustomerNameFilter, 'i') };
+      type MatchQuery = { $match: { createdBy: mongoose.Types.ObjectId; tipe: string; customer?: { $regex: RegExp } } };
+      (matchStage as MatchQuery).$match.customer = { $regex: new RegExp(escapedCustomerNameFilter, 'i') };
     }
 
     const aggregationPipeline: mongoose.PipelineStage[] = [

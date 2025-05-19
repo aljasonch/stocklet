@@ -30,23 +30,23 @@ const getPayableReportHandler = async (
         tipe: TransactionType.PEMBELIAN,
       },
     };
-    if (escapedSupplierNameFilter) { // Use escaped filter
-      // 'customer' field in Transaction model stores supplier names for PEMBELIAN type
-      (matchStage.$match as any).customer = { $regex: new RegExp(escapedSupplierNameFilter, 'i') };
+    if (escapedSupplierNameFilter) {
+      type MatchQuery = { $match: { createdBy: mongoose.Types.ObjectId; tipe: string; customer?: { $regex: RegExp } } };
+      (matchStage as MatchQuery).$match.customer = { $regex: new RegExp(escapedSupplierNameFilter, 'i') };
     }
 
     const aggregationPipeline: mongoose.PipelineStage[] = [
       matchStage,
       {
         $group: {
-          _id: '$customer', // Group by supplier name (stored in 'customer' field)
+          _id: '$customer',
           totalPurchases: { $sum: '$totalHarga' },
         },
       },
       {
         $lookup: {
           from: CustomerLedger.collection.name,
-          let: { supplierName: '$_id' }, // Name matches 'customer' field from Transaction
+          let: { supplierName: '$_id' },
           pipeline: [
             {
               $match: {
@@ -66,12 +66,12 @@ const getPayableReportHandler = async (
       {
         $unwind: {
           path: '$ledgerInfo',
-          preserveNullAndEmptyArrays: true, // Keep suppliers even if no ledger entry
+          preserveNullAndEmptyArrays: true,
         },
       },
       {
         $addFields: {
-          supplierName: '$_id', // Renaming for clarity in output
+          supplierName: '$_id',
           initialPayableBalance: { $ifNull: ['$ledgerInfo.initialPayable', 0] },
         },
       },
