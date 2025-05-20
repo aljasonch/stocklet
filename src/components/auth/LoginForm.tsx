@@ -22,6 +22,7 @@ export default function LoginForm() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
+        credentials: 'include',
       });
 
       const data = await response.json();
@@ -32,6 +33,7 @@ export default function LoginForm() {
 
       if (data.user) {
         login(data.user);
+        window.location.href = '/';
       } else {
         throw new Error('Login successful, but user data was not returned.');
       }
