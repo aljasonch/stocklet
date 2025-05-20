@@ -21,7 +21,7 @@
 
 ## 🗂️ Struktur Proyek
 
-/components # Komponen UI
-/app/api # API Routes
-/models # Schema Mongoose
-/lib # Koneksi database dan helper functions
+- /components # Komponen UI
+- /app/api # API Routes
+- /models # Schema Mongoose
+- /lib # Koneksi database dan helper functions
