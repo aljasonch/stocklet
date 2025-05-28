@@ -338,7 +338,7 @@ export default function AccountsPage() {
       </form>
     );
   };
-
+  
   function renderPaymentModal() {
     if (!isPaymentModalOpen) return null;
 
@@ -380,63 +380,158 @@ export default function AccountsPage() {
       } catch (err: unknown) {
         setPaymentFormError(err instanceof Error ? err.message : 'Terjadi kesalahan.');
       }
-    };
+    };    
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm">
-        <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md space-y-4 border">
-          <h3 className="text-lg font-medium text-gray-900">Input Pembayaran untuk {paymentCustomerName}</h3>
-          <form onSubmit={handlePaymentSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="paymentAmount" className="block text-sm font-medium text-gray-700">Jumlah Pembayaran:</label>
-              <input
-                type="number"
-                id="paymentAmount"
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
-                required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              />
+      <div className="fixed inset-0 z-50 flex items-center justify-center animate-fadeIn"
+          onClick={() => setIsPaymentModalOpen(false)}>
+        <div 
+          className="bg-[color:var(--card-bg)] rounded-2xl shadow-2xl border border-[color:var(--border-color)] w-full max-w-lg mx-4 overflow-hidden animate-slideUp"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-6 py-5 border-b border-[color:var(--border-color)] bg-[color:var(--surface)]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-opacity-10 rounded-lg">
+                  💰
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">Input Pembayaran</h3>
+                  <p className="text-sm text-[color:var(--muted)] mt-1">
+                    {activeTab === 'receivable' ? 'Pembayaran Piutang' : 'Pembayaran Utang'} untuk {paymentCustomerName}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsPaymentModalOpen(false)}
+                className="p-2 hover:bg-[color:var(--surface)] rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5 text-[color:var(--muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-            <div>
-              <label htmlFor="paymentDate" className="block text-sm font-medium text-gray-700">Tanggal Pembayaran:</label>
-              <input
-                type="date"
-                id="paymentDate"
-                value={paymentDate}
-                onChange={(e) => setPaymentDate(e.target.value)}
-                required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              />
-            </div>
-            <div>
-              <label htmlFor="paymentNotes" className="block text-sm font-medium text-gray-700">Catatan (Opsional):</label>
-              <textarea
-                id="paymentNotes"
-                value={paymentNotes}
-                onChange={(e) => setPaymentNotes(e.target.value)}
-                rows={3}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              />
-            </div>
-            {paymentFormError && <p className="text-sm text-red-500">{paymentFormError}</p>}
-            {paymentFormSuccess && <p className="text-sm text-green-500">{paymentFormSuccess}</p>}
-            <div className="flex justify-end space-x-3 pt-2">
+          </div>
+
+          <div className="px-6 py-6">
+            <form id="paymentForm" onSubmit={handlePaymentSubmit} className="space-y-6">
+              <div className="p-4 bg-[color:var(--surface)] rounded-xl">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-opacity-10 rounded-lg">
+                    <svg className="w-5 h-5 " fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm text-[color:var(--muted)]">
+                      {activeTab === 'receivable' ? 'Customer' : 'Supplier'}
+                    </p>
+                    <p className="text-lg font-semibold text-[color:var(--foreground)]">
+                      {paymentCustomerName}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {paymentFormError && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <div className="flex items-center space-x-2">
+                    <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 15.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    <p className="text-sm text-red-700">{paymentFormError}</p>
+                  </div>
+                </div>
+              )}
+
+              {paymentFormSuccess && (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
+                  <div className="flex items-center space-x-2">
+                    <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <p className="text-sm text-green-700">{paymentFormSuccess}</p>
+                  </div>
+                </div>
+              )}
+              <div>
+                <label htmlFor="paymentAmount" className="text-sm font-medium text-[color:var(--foreground)] block mb-2">
+                  Jumlah Pembayaran
+                </label>
+                <div className="flex items-center border border-[color:var(--border-color)] rounded-xl shadow-sm bg-[color:var(--card-bg)]">
+                  <div className="flex items-center justify-center px-4 py-3 border-r border-[color:var(--border-color)]">
+                    <span className="text-[color:var(--foreground)]">Rp</span>
+                  </div>
+                  <input
+                    type="number"
+                    id="paymentAmount"
+                    placeholder="Masukkan jumlah"
+                    value={paymentAmount}
+                    onChange={(e) => {
+                      setPaymentAmount(e.target.value);
+                      setPaymentFormError(null);
+                    }}
+                    className="w-full py-3 px-4 outline-none bg-transparent text-[color:var(--foreground)]"
+                    step="any"
+                    min="0.01"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="paymentDate" className="text-sm font-medium text-[color:var(--foreground)] block mb-2">
+                  Tanggal Pembayaran
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    id="paymentDate"
+                    value={paymentDate}
+                    onChange={(e) => {
+                      setPaymentDate(e.target.value);
+                      setPaymentFormError(null);
+                    }}
+                    className="form-input w-full pl-4 pr-4 py-3 text-[color:var(--foreground)] bg-[color:var(--card-bg)] border border-[color:var(--border-color)] rounded-xl shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="paymentNotes" className="text-sm font-medium text-[color:var(--foreground)] block mb-2">
+                  Catatan <span className="text-[color:var(--muted)]">(Opsional)</span>
+                </label>
+                <textarea
+                  id="paymentNotes"
+                  placeholder="Tambahkan catatan pembayaran..."
+                  value={paymentNotes}
+                  onChange={(e) => setPaymentNotes(e.target.value)}
+                  rows={3}
+                  className="form-input w-full pl-4 pr-4 py-3 text-[color:var(--foreground)] bg-[color:var(--card-bg)] border border-[color:var(--border-color)] rounded-xl shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all resize-none"
+                />
+              </div>
+            </form>
+          </div>
+
+          <div className="px-6 py-4 bg-[color:var(--surface)] border-t border-[color:var(--border-color)]">
+            <div className="flex justify-end space-x-3">
               <button
                 type="button"
                 onClick={() => setIsPaymentModalOpen(false)}
-                className="px-4 py-2 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="px-5 py-2.5 text-sm cursor-pointer font-medium rounded-xl border border-[color:var(--border-color)] text-[color:var(--foreground)] hover:bg-[color:var(--card-bg)] transition-colors"
               >
                 Batal
               </button>
               <button
+                form="paymentForm"
                 type="submit"
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 text-sm font-medium"
+                className="px-5 py-2.5 text-sm cursor-pointer font-medium rounded-xl bg-green-500 text-white hover:bg-green-600 transition-colors"
               >
                 Simpan Pembayaran
               </button>
             </div>
-          </form>
+          </div>
         </div>
       </div>
     );

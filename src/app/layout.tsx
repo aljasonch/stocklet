@@ -34,14 +34,28 @@ export default function RootLayout({
         style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}
       >
         <AuthProvider> 
-          <header className="shadow-sm sticky top-0 z-50" style={{ backgroundColor: 'var(--card-bg)', borderBottom: '1px solid var(--border-color)'}}>
+          <header className="shadow-lg sticky top-0 z-50 border-b" style={{ backgroundColor: 'var(--card-bg)', borderBottomColor: 'var(--border-color)'}}>
             <ClientNav />
           </header>
-          <main className="container mx-auto p-6 mt-6 flex-grow">
-            {children}
+          <main className="container mx-auto p-6 mt-8 flex-grow">
+            <div className="max-w-7xl mx-auto">
+              {children}
+            </div>
           </main>
-          <footer className="text-center py-6 mt-auto text-sm" style={{ backgroundColor: 'var(--card-bg)', borderTop: '1px solid var(--border-color)', color: 'var(--foreground)', opacity: 0.8 }}>
-            <p>&copy; {new Date().getFullYear()} Stocklet Beta. Created by aljasonch.</p>
+          <footer
+            className="text-center py-8 mt-auto text-sm border-t"
+            style={{
+              backgroundColor: 'var(--surface)',
+              borderTopColor: 'var(--border-color)',
+              color: 'var(--muted)',
+            }}
+          >
+            <p className="font-medium">
+              &copy; {new Date().getFullYear()} Stocklet Beta. All rights reserved.
+            </p>
+            <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+              Created by aljasonch
+            </p>
           </footer>
         </AuthProvider>
       </body>
