@@ -112,7 +112,16 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
           </button>        
           </div>
         <p className={themedTextMuted}>
-          {filterType === 'ALL' ? 'No transactions found.' : `No ${filterType === TransactionType.PENJUALAN ? 'sales' : 'purchase'} transactions found.`}
+          {filterType === 'ALL' ? 'No transactions found.' : (() => {
+            switch (filterType) {
+              case TransactionType.PENJUALAN:
+                return 'No sales transactions found.';
+              case TransactionType.PEMBELIAN:
+                return 'No purchase transactions found.';
+              default:
+                return 'No transactions found for the selected type.';
+            }
+          })()}
         </p>
         {totalPages > 1 && (
            <div className="mt-6 flex justify-center items-center space-x-3">

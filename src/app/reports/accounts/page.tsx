@@ -383,7 +383,8 @@ export default function AccountsPage() {
     };    
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center animate-fadeIn">
+      <div className="fixed inset-0 z-50 flex items-center justify-center animate-fadeIn"
+          onClick={() => setIsPaymentModalOpen(false)}>
         <div 
           className="bg-[color:var(--card-bg)] rounded-2xl shadow-2xl border border-[color:var(--border-color)] w-full max-w-lg mx-4 overflow-hidden animate-slideUp"
           onClick={(e) => e.stopPropagation()}
@@ -413,7 +414,7 @@ export default function AccountsPage() {
           </div>
 
           <div className="px-6 py-6">
-            <form onSubmit={handlePaymentSubmit} className="space-y-6">
+            <form id="paymentForm" onSubmit={handlePaymentSubmit} className="space-y-6">
               <div className="p-4 bg-[color:var(--surface)] rounded-xl">
                 <div className="flex items-center space-x-3">
                   <div className="p-2 bg-opacity-10 rounded-lg">
@@ -523,8 +524,8 @@ export default function AccountsPage() {
                 Batal
               </button>
               <button
+                form="paymentForm"
                 type="submit"
-                onClick={handlePaymentSubmit}
                 className="px-5 py-2.5 text-sm cursor-pointer font-medium rounded-xl bg-green-500 text-white hover:bg-green-600 transition-colors"
               >
                 Simpan Pembayaran

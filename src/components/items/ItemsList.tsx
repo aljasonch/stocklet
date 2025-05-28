@@ -234,7 +234,8 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
       </div>
 
       {isStockModalOpen && currentItemForModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center animate-fadeIn"
+            onClick={() => setIsStockModalOpen(false)}>
           <div
             className="bg-[color:var(--card-bg)] rounded-2xl shadow-2xl border border-[color:var(--border-color)] w-full max-w-lg mx-4 overflow-hidden animate-slideUp"
             onClick={(e) => e.stopPropagation()}
@@ -504,7 +505,8 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
         </div>
       )}
       {isEditNameModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center animate-fadeIn"
+            onClick={() => setIsEditNameModalOpen(false)}>
           <div
             className="bg-[color:var(--card-bg)] rounded-2xl shadow-2xl border border-[color:var(--border-color)] w-full max-w-md mx-4 overflow-hidden animate-slideUp"
             onClick={(e) => e.stopPropagation()}
