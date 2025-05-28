@@ -220,7 +220,7 @@ export default function TransactionForm({ onTransactionAdded, isEditMode = false
     }
   };
 
-  const inputStyles = "appearance-none block w-full px-3 py-2.5 border border-[color:var(--border-color)] rounded-md shadow-sm placeholder-[color:var(--foreground)] placeholder-opacity-50  sm:text-sm bg-[color:var(--card-bg)] text-[color:var(--foreground)] transition-all duration-150 ease-in-out disabled:opacity-70 disabled:cursor-not-allowed";
+  const inputStyles = "appearance-none block w-full px-3 py-2.5 rounded-md shadow-sm placeholder-[color:var(--foreground)] placeholder-opacity-50  sm:text-sm bg-[color:var(--card-bg)] text-[color:var(--foreground)] transition-all duration-150 ease-in-out disabled:opacity-70 disabled:cursor-not-allowed";
   const labelStyles = "block text-sm font-medium text-[color:var(--foreground)] opacity-90";
 
   return (  
@@ -275,7 +275,7 @@ export default function TransactionForm({ onTransactionAdded, isEditMode = false
             onChange={handleItemSearchChange}
             onFocus={() => { if (itemSearchTerm && itemSearchResults.length > 0) setShowItemSearchResults(true);}}
             placeholder={isLoadingItems ? "Loading item..." : "Ketik untuk mencari barang..."}
-            className={`mt-1 ${inputStyles}`}
+            className={`mt-1 ${inputStyles} placeholder-gray-400`}
             disabled={isSubmitting || isLoadingItems}
             required={!itemId} 
           />
