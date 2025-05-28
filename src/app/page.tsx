@@ -6,8 +6,8 @@ import { useAuth } from '@/context/AuthContext';
 export default function HomePage() {
   const { isAuthenticated, isLoading } = useAuth();
 
-  const cardClasses = "group block p-6 bg-white border border-gray-200 rounded-xl shadow-lg hover:shadow-2xl hover:border-indigo-500 transition-all duration-300 ease-in-out transform hover:-translate-y-1 h-full flex flex-col";
-  const cardTitleClasses = "mb-2 text-2xl font-bold tracking-tight text-[color:var(--primary)] group-hover:text-indigo-800 transition-colors";
+  const cardClasses = "group block p-6 bg-white border border-gray-200 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 h-full flex flex-col";
+  const cardTitleClasses = "mb-2 text-2xl font-bold tracking-tight text-[color:var(--primary)] transition-colors";
   const cardTextClasses = "font-normal text-gray-600 group-hover:text-gray-700 transition-colors flex-grow";
 
   const commonLinks = [
