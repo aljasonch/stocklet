@@ -35,7 +35,9 @@ interface SheetRow {
   'Barang': string;
   'Berat (kg)': number | undefined | null; 
   'Harga': number | undefined | null; 
-  'Total Harga': number | undefined | null;
+  'Subtotal': number | undefined | null;
+  'PPN (11%)': number | undefined | null;
+  'Total': number | undefined | null;
   'No.SJ SBY': string;
 }
 
@@ -109,28 +111,34 @@ const getExportSalesHandler = async (request: NextRequest): Promise<Response> =>
 
     if (salesData.length === 0) {
       return NextResponse.json({ message: 'No data to export for the selected filters.' }, { status: 404 });
-    }
-
-    const dataForSheet: SheetRow[] = salesData.map(tx => ({ 
-      'Tanggal': new Date(tx.tanggal).toLocaleDateString(),
-      'Customer': tx.customer,
-      'No. SJ': tx.noSJ || '', 
-      'No. Inv': tx.noInv || '',
-      'No.PO': tx.noPO || '',
-      'Barang': (tx.item as IItem)?.namaBarang || tx.namaBarangSnapshot || 'N/A',
-      'Berat (kg)': tx.berat,
-      'Harga': tx.harga,
-      'Total Harga': tx.totalHarga,
-      'No.SJ SBY': tx.noSJSby || '',
-    }));
-
+    }    
+    const dataForSheet: SheetRow[] = salesData.map(tx => { 
+    const ppnAmount = tx.totalHarga * 0.11;
+    const totalWithPPN = tx.totalHarga + ppnAmount;
+      
+      return {
+        'Tanggal': new Date(tx.tanggal).toLocaleDateString(),
+        'Customer': tx.customer,
+        'No. SJ': tx.noSJ || '', 
+        'No. Inv': tx.noInv || '',
+        'No.PO': tx.noPO || '',
+        'Barang': (tx.item as IItem)?.namaBarang || tx.namaBarangSnapshot || 'N/A',
+        'Berat (kg)': tx.berat,
+        'Harga': tx.harga,
+        'Subtotal': tx.totalHarga,
+        'PPN (11%)': ppnAmount,
+        'Total': totalWithPPN,
+        'No.SJ SBY': tx.noSJSby || '',
+      };});    
     const totalBerat = salesData.reduce((sum, tx) => sum + tx.berat, 0);
     const totalNilai = salesData.reduce((sum, tx) => sum + tx.totalHarga, 0);
+    const totalPPN = totalNilai * 0.11;
+    const totalDenganPPN = totalNilai + totalPPN;
 
     const emptyRowForSheet: SheetRow = {
       'Tanggal': '', 'Customer': '', 'No. SJ': '', 'No. Inv': '', 'No.PO': '',
       'Barang': '', 'Berat (kg)': null, 'Harga': null,
-      'Total Harga': null, 'No.SJ SBY': ''
+      'Subtotal': null, 'PPN (11%)': null, 'Total': null, 'No.SJ SBY': ''
     };
     dataForSheet.push(emptyRowForSheet);
 
@@ -143,25 +151,28 @@ const getExportSalesHandler = async (request: NextRequest): Promise<Response> =>
         'Barang': '',
         'Berat (kg)': totalBerat,
         'Harga': null,
-        'Total Harga': totalNilai,
+        'Subtotal': totalNilai,
+        'PPN (11%)': totalPPN,
+        'Total': totalDenganPPN,
         'No.SJ SBY': '',
     });
 
     const worksheet = XLSX.utils.json_to_sheet(dataForSheet);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Laporan Penjualan');
-
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Laporan Penjualan');    
     const columnWidths = [
-        { wch: 12 },
-        { wch: 25 },
-        { wch: 15 },
-        { wch: 15 },
-        { wch: 15 },
-        { wch: 30 },
-        { wch: 12 },
-        { wch: 15 }, 
-        { wch: 18 }, 
-        { wch: 15 }, 
+        { wch: 12 }, // Tanggal
+        { wch: 25 }, // Customer
+        { wch: 15 }, // No. SJ
+        { wch: 15 }, // No. Inv
+        { wch: 15 }, // No.PO
+        { wch: 30 }, // Barang
+        { wch: 12 }, // Berat (kg)
+        { wch: 15 }, // Harga
+        { wch: 18 }, // Subtotal
+        { wch: 15 }, // PPN (11%)
+        { wch: 18 }, // Total
+        { wch: 15 }, // No.SJ SBY
     ];
     worksheet['!cols'] = columnWidths;
 

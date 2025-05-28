@@ -92,9 +92,7 @@ export default function LoginForm() {
       </div>
 
       {error && (
-        <div className="p-3 bg-red-500 bg-opacity-10 border border-red-500 border-opacity-30 rounded-md">
           <p className="text-sm text-red-600">{error}</p>
-        </div>
       )}
 
       <div>
