@@ -169,9 +169,9 @@ const getExportSalesHandler = async (request: NextRequest): Promise<Response> =>
         { wch: 30 }, // Barang
         { wch: 12 }, // Berat (kg)
         { wch: 15 }, // Harga
-        { wch: 18 }, // Total Harga
+        { wch: 18 }, // Subtotal
         { wch: 15 }, // PPN (11%)
-        { wch: 18 }, // Total + PPN
+        { wch: 18 }, // Total
         { wch: 15 }, // No.SJ SBY
     ];
     worksheet['!cols'] = columnWidths;

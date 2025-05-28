@@ -134,7 +134,8 @@ const getExportPurchasesHandler = async (request: NextRequest): Promise<Response
 
     const worksheet = XLSX.utils.json_to_sheet(dataForSheet);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Laporan Pembelian');    const columnWidths = [
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Laporan Pembelian');    
+    const columnWidths = [
         { wch: 12 }, // Tanggal
         { wch: 25 }, // Supplier
         { wch: 15 }, // No. SJ
