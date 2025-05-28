@@ -26,9 +26,11 @@ export default function SalesReportTable({ reportData, isLoading, error }: Sales
     return <p className={themedTextMuted}>No sales data found for the selected filters.</p>;
   }
 
-  // Calculate totals
   const totalBerat = reportData.reduce((sum, tx) => sum + tx.berat, 0);
   const totalNilai = reportData.reduce((sum, tx) => sum + tx.totalHarga, 0);
+  const ppnRate = 0.11; // 11% PPN
+  const totalPPN = totalNilai * ppnRate;
+  const totalDenganPPN = totalNilai + totalPPN;
 
   const thClasses = "px-6 py-3 text-left text-xs font-medium text-[color:var(--foreground)] opacity-75 uppercase tracking-wider";
   const tdBaseClasses = "px-6 py-4 whitespace-nowrap text-sm";
@@ -50,7 +52,9 @@ export default function SalesReportTable({ reportData, isLoading, error }: Sales
               <th scope="col" className={thClasses}>Barang</th>
               <th scope="col" className={`${thClasses} text-right`}>Berat (kg)</th>
               <th scope="col" className={`${thClasses} text-right`}>Harga</th>
-              <th scope="col" className={`${thClasses} text-right`}>Total Harga</th>
+              <th scope="col" className={`${thClasses} text-right`}>Subtotal</th>
+              <th scope="col" className={`${thClasses} text-right`}>PPN (11%)</th>
+              <th scope="col" className={`${thClasses} text-right`}>Total</th>
               <th scope="col" className={thClasses}>No. PO</th>
               <th scope="col" className={thClasses}>No.SJ SBY</th>
             </tr>
@@ -70,17 +74,21 @@ export default function SalesReportTable({ reportData, isLoading, error }: Sales
                   <td className={`${tdTextMuted} text-right`}>{tx.berat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td className={`${tdTextMuted} text-right`}>{tx.harga.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</td>
                   <td className={`${tdTextEmphasized} text-right`}>{tx.totalHarga.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</td>
+                  <td className={`${tdTextMuted} text-right`}>{(tx.totalHarga * ppnRate).toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</td>
+                  <td className={`${tdTextEmphasized} text-right`}>{(tx.totalHarga * (1 + ppnRate)).toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</td>
                   <td className={tdTextMuted}>{tx.noPO || '-'}</td>
                   <td className={tdTextMuted}>{tx.noSJSby || '-'}</td>
-                </tr>
-              ))
+                </tr>              
+                ))
             }</tbody>
-          <tfoot className="bg-[color:var(--background)] border-t border-[color:var(--border-color)]">
+            <tfoot className="bg-[color:var(--background)] border-t border-[color:var(--border-color)]">
             <tr>
               <td colSpan={5} className={`${tfootTdClasses} text-left`}>Total Keseluruhan</td>
               <td className={`${tfootTdClasses} text-right`}>{totalBerat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg</td>
               <td className={tfootTdClasses}>{null}</td>
               <td className={`${tfootTdClasses} text-right`}>{totalNilai.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</td>
+              <td className={`${tfootTdClasses} text-right`}>{totalPPN.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</td>
+              <td className={`${tfootTdClasses} text-right`}>{totalDenganPPN.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</td>
               <td colSpan={2} className={tfootTdClasses}>{null}</td>
             </tr>
           </tfoot>
