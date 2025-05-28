@@ -12,20 +12,21 @@
 
     const toggleMobileMenu = () => {
       setIsMobileMenuOpen(!isMobileMenuOpen);
-    };
+    };   
 
     const navLinkClasses = (path: string) =>
-      `py-1.5 px-3 rounded-md transition-all duration-200 ease-in-out 
+      `py-2 px-4 rounded-lg transition-all duration-200 ease-in-out font-medium
       ${pathname === path 
-        ? 'font-bold text-[color:var(--primary)] bg-opacity-10'
-        : 'text-[color:var(--foreground)] opacity-75 hover:opacity-100 hover:text-[color:var(--primary)] hover:bg-opacity-5'
+        ? 'text-white bg-[color:var(--primary)] shadow-md'
+        : 'text-[color:var(--foreground)] hover:text-[color:var(--primary)] hover:bg-[color:var(--surface)]'
       } cursor-pointer`;
 
     const mobileNavLinkClasses = (path: string) =>      
-      `block py-2.5 px-4 text-sm transition-colors duration-150 ease-in-out 
+      `block py-3 px-4 text-sm transition-all duration-150 ease-in-out font-medium rounded-lg mx-2 my-1
       ${pathname === path 
-        ? 'font-semibold text-[color:var(--primary)] ' 
-        : 'text-[color:var(--foreground)] hover:bg-[color:var(--background)] hover:text-[color:var(--primary)]'      }`;    
+        ? 'text-white bg-[color:var(--primary)]' 
+        : 'text-[color:var(--foreground)] hover:bg-[color:var(--surface)] hover:text-[color:var(--primary)]'
+      }`;
     useEffect(() => {
       setIsMobileMenuOpen(false);
     }, [pathname]);
@@ -43,61 +44,63 @@
           </div>
         </nav>
       );
-    }
-
+    }    
+    
     return (
       <nav className="sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+        <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <Link href="/">
-            <span className="text-2xl font-bold text-[color:var(--primary)] cursor-pointer hover:opacity-85 transition-opacity duration-150">Stocklet</span>
-          </Link>
+            <span className="text-3xl font-bold text-[color:var(--primary)] cursor-pointer hover:text-[color:var(--primary-hover)] transition-colors duration-200 flex items-center gap-2">
+              📦 Stocklet
+            </span>
+          </Link>    
 
           <div className="md:hidden">
             <button
               onClick={toggleMobileMenu}
-              className="p-1 rounded-md text-[color:var(--foreground)] hover:text-[color:var(--primary)] hover:bg-[color:var(--primary)] hover:bg-opacity-10 focus:outline-none focus:ring-2 focus:ring-[color:var(--primary)] transition-all duration-150"
+              className="p-2 rounded-lg text-[color:var(--foreground)] hover:text-[color:var(--primary)] hover:bg-[color:var(--surface)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary)] transition-all duration-150"
               aria-label="Toggle menu"
               aria-expanded={isMobileMenuOpen}
             >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 {isMobileMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16m-7 6h7" />
                 )}
               </svg>
             </button>
-          </div>
+          </div>     
 
-          <div className="hidden font-semibold md:flex space-x-4 items-center">
-            <Link href="/"><span className={navLinkClasses('/')}>Home</span></Link>
+          <div className="hidden font-semibold md:flex space-x-2 items-center">
+            <Link href="/"><span className={navLinkClasses('/')}>🏠 Home</span></Link>
             
             {isAuthenticated && (
               <>
-                <Link href="/items"><span className={navLinkClasses('/items')}>Stok</span></Link>
-                <Link href="/transactions"><span className={navLinkClasses('/transactions')}>Transaksi</span></Link>
+                <Link href="/items"><span className={navLinkClasses('/items')}>📦 Stok</span></Link>
+                <Link href="/transactions"><span className={navLinkClasses('/transactions')}>💰 Transaksi</span></Link>
                 <div className="relative group">
-                  <button className={`${navLinkClasses('/reports')} flex items-center`}>
-                    Laporan
-                    <svg className="ml-1 h-4 w-4 opacity-75 group-hover:opacity-100 transition-opacity" fill="currentColor" viewBox="0 0 20 20">
+                  <button className={`${navLinkClasses('/reports')} flex items-center gap-1`}>
+                    📊 Laporan
+                    <svg className="ml-1 h-4 w-4 transition-transform group-hover:rotate-180" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                     </svg>
                   </button>
-                  <div className="absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-[color:var(--card-bg)] ring-1 ring-[color:var(--border-color)] ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ease-in-out z-10">
-                    <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                  <div className="absolute left-0 mt-2 w-56 rounded-xl shadow-xl bg-[color:var(--card-bg)] ring-1 ring-[color:var(--border-color)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 ease-out transform group-hover:translate-y-1 z-20">
+                    <div className="py-2" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
                       <Link href="/reports/sales">
-                        <span className={`block px-4 py-2 text-sm ${pathname === '/reports/sales' ? 'font-semibold text-[color:var(--primary)]' : 'text-[color:var(--foreground)]'} hover:bg-[color:var(--background)] hover:text-[color:var(--primary)]`} role="menuitem">
-                          Laporan Penjualan
+                        <span className={`block px-4 py-3 text-sm font-medium rounded-lg mx-2 transition-colors ${pathname === '/reports/sales' ? 'text-white bg-[color:var(--primary)]' : 'text-[color:var(--foreground)] hover:bg-[color:var(--surface)] hover:text-[color:var(--primary)]'}`} role="menuitem">
+                          📈 Laporan Penjualan
                         </span>
                       </Link>
                       <Link href="/reports/purchases">
-                        <span className={`block px-4 py-2 text-sm ${pathname === '/reports/purchases' ? 'font-semibold text-[color:var(--primary)]' : 'text-[color:var(--foreground)]'} hover:bg-[color:var(--background)] hover:text-[color:var(--primary)]`} role="menuitem">
-                          Laporan Pembelian
+                        <span className={`block px-4 py-3 text-sm font-medium rounded-lg mx-2 transition-colors ${pathname === '/reports/purchases' ? 'text-white bg-[color:var(--primary)]' : 'text-[color:var(--foreground)] hover:bg-[color:var(--surface)] hover:text-[color:var(--primary)]'}`} role="menuitem">
+                          📉 Laporan Pembelian
                         </span>
                       </Link>
                       <Link href="/reports/accounts">
-                        <span className={`block px-4 py-2 text-sm ${pathname === '/reports/accounts' ? 'font-semibold text-[color:var(--primary)]' : 'text-[color:var(--foreground)]'} hover:bg-[color:var(--background)] hover:text-[color:var(--primary)]`} role="menuitem">
-                          Laporan Piutang/Utang
+                        <span className={`block px-4 py-3 text-sm font-medium rounded-lg mx-2 transition-colors ${pathname === '/reports/accounts' ? 'text-white bg-[color:var(--primary)]' : 'text-[color:var(--foreground)] hover:bg-[color:var(--surface)] hover:text-[color:var(--primary)]'}`} role="menuitem">
+                          💳 Piutang/Utang
                         </span>
                       </Link>
                     </div>
@@ -129,11 +132,11 @@
             </button>
             ) : (
               pathname !== '/login' && (
-                <Link href="/login"><span className={navLinkClasses('/login')}>Login</span></Link>
+                <Link href="/login"><span className={navLinkClasses('/login')}>👤 Login</span></Link>
               )
             )}
             {!isAuthenticated && process.env.NEXT_PUBLIC_REGISTRATION_ENABLED === 'true' && pathname !== '/register' && (
-              <Link href="/register"><span className={navLinkClasses('/register')}>Register</span></Link>
+              <Link href="/register"><span className={navLinkClasses('/register')}>📝 Register</span></Link>
             )}
           </div>
         </div>

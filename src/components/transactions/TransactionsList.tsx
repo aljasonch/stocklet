@@ -109,10 +109,10 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
             className={`px-4 py-2 rounded-md cursor-pointer text-sm font-medium transition-colors ${filterType === TransactionType.PEMBELIAN ? 'bg-green-500 text-white' : 'bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)]  text-[color:var(--foreground)]'}`}
           >
             Pembelian
-          </button>
-        </div>
+          </button>        
+          </div>
         <p className={themedTextMuted}>
-          {filterType === 'ALL' ? 'No transactions found.' : `No ${filterType.toLowerCase()} transactions found.`}
+          {filterType === 'ALL' ? 'No transactions found.' : `No ${filterType === TransactionType.PENJUALAN ? 'sales' : 'purchase'} transactions found.`}
         </p>
         {totalPages > 1 && (
            <div className="mt-6 flex justify-center items-center space-x-3">
