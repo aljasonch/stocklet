@@ -35,14 +35,13 @@ export default function PurchaseReportPage() {
 
   const [items, setItems] = useState<IItem[]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(true);
-  const [itemsError, setItemsError] = useState<string | null>(null);
-
-  useEffect(() => {
+  const [itemsError, setItemsError] = useState<string | null>(null);  useEffect(() => {
     const fetchItems = async () => {
       setIsLoadingItems(true);
       setItemsError(null);
       try {
-        const response = await fetchWithAuth('/api/items');
+        // Fetch all items for the filter dropdown
+        const response = await fetchWithAuth('/api/items?fetchAll=true');
         if (!response.ok) {
           const data = await response.json();
           throw new Error(data.message || 'Failed to fetch items for filters');

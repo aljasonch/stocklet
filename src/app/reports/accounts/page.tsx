@@ -3,6 +3,17 @@
 import { useState, useCallback, useEffect } from 'react';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
+interface IPaymentHistory {
+  _id: string;
+  customerName: string;
+  paymentDate: string;
+  amount: number;
+  paymentType: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface IReceivableData {
   customerName: string;
   initialReceivableBalance: number;
@@ -47,12 +58,23 @@ export default function AccountsPage() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [paymentCustomerName, setPaymentCustomerName] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
+  
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
-  const [paymentNotes, setPaymentNotes] = useState('');
+  const [paymentNotes, setPaymentNotes] = useState('');  
   const [paymentFormError, setPaymentFormError] = useState<string | null>(null);
   const [paymentFormSuccess, setPaymentFormSuccess] = useState<string | null>(null);
 
-  // Debounce utility
+  const [isPaymentHistoryModalOpen, setIsPaymentHistoryModalOpen] = useState(false);
+  const [paymentHistoryCustomerName, setPaymentHistoryCustomerName] = useState('');
+  const [paymentHistory, setPaymentHistory] = useState<IPaymentHistory[]>([]);
+  const [isLoadingPaymentHistory, setIsLoadingPaymentHistory] = useState(false);
+  const [paymentHistoryError, setPaymentHistoryError] = useState<string | null>(null);
+
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
+  const [editingAmount, setEditingAmount] = useState('');
+  const [editingNotes, setEditingNotes] = useState('');
+  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
+
   const debounce = <T extends unknown[], R>(
     func: (...args: T) => Promise<R> | R,
     waitFor: number
@@ -68,7 +90,6 @@ export default function AccountsPage() {
     };
   };
 
-  // Debounce filter name
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedFilterName(filterName);
@@ -101,7 +122,6 @@ export default function AccountsPage() {
     }
   };
 
-  // Debounced customer search
   const debouncedFetchCustomers = useCallback(
     debounce<[string], void>((searchTerm: string) => {
       fetchDistinctCustomersForSearch(searchTerm);
@@ -195,14 +215,99 @@ export default function AccountsPage() {
       setInitialBalanceValue('');
       fetchData();
     } catch (err: unknown) {
-      setBalanceFormError(err instanceof Error ? err.message : 'Terjadi kesalahan.');
+      setBalanceFormError(err instanceof Error ? err.message : 'Terjadi kesalahan.');    }
+  };
+
+  const fetchPaymentHistory = async (customerName: string) => {
+    setIsLoadingPaymentHistory(true);
+    setPaymentHistoryError(null);
+    
+    try {
+      const paymentType = activeTab === 'receivable' ? 'receivable_payment' : 'payable_payment';
+      const response = await fetchWithAuth(`/api/account-payments?customerName=${encodeURIComponent(customerName)}&paymentType=${paymentType}`);
+      
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || 'Failed to fetch payment history');
+      }
+      
+      const data = await response.json();
+      setPaymentHistory(data.payments || []);
+    } catch (err: unknown) {
+      setPaymentHistoryError(err instanceof Error ? err.message : 'Failed to fetch payment history');
+      setPaymentHistory([]);
+    } finally {
+      setIsLoadingPaymentHistory(false);
     }
+  };
+
+  const handleUpdatePayment = async (paymentId: string, amount: number, notes: string) => {
+    setIsUpdatingPayment(true);
+    
+    try {
+      const response = await fetchWithAuth('/api/account-payments', {
+        method: 'PUT',
+        body: JSON.stringify({
+          paymentId,
+          amount,
+          notes,
+        }),
+      });
+      
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || 'Failed to update payment');
+      }
+
+      await fetchPaymentHistory(paymentHistoryCustomerName);
+      await fetchData();
+      
+      setEditingPaymentId(null);
+      setEditingAmount('');
+      setEditingNotes('');
+    } catch (err: unknown) {
+      setPaymentHistoryError(err instanceof Error ? err.message : 'Failed to update payment');
+    } finally {
+      setIsUpdatingPayment(false);
+    }
+  };
+
+  const handleOpenPaymentHistory = (customerName: string) => {
+    setPaymentHistoryCustomerName(customerName);
+    setIsPaymentHistoryModalOpen(true);
+    setPaymentHistoryError(null);
+    fetchPaymentHistory(customerName);
+  };
+
+  const handleStartEditPayment = (payment: IPaymentHistory) => {
+    setEditingPaymentId(payment._id);
+    setEditingAmount(payment.amount.toString());
+    setEditingNotes(payment.notes || '');
+  };
+
+  const handleCancelEditPayment = () => {
+    setEditingPaymentId(null);
+    setEditingAmount('');
+    setEditingNotes('');
+    setPaymentHistoryError(null);
+  };
+
+  const handleSaveEditPayment = async () => {
+    if (!editingPaymentId) return;
+    
+    const amount = parseFloat(editingAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setPaymentHistoryError('Jumlah pembayaran harus berupa angka positif.');
+      return;
+    }
+    
+    await handleUpdatePayment(editingPaymentId, amount, editingNotes);
   };
 
   const renderTable = () => {
     if (isLoading) return <p className="text-center py-4">Memuat data...</p>;
     if (error) return <p className="text-center py-4 text-red-500">Error: {error}</p>;
-    if (reportData.length === 0) return <p className="text-center py-4">Tidak ada data ditemukan.</p>;
+    if (reportData.length === 0) return <p className="text-center py-4">Tidak ada data ditemukan.</p>;    
 
     const isReceivable = activeTab === 'receivable';
     const headers = isReceivable
@@ -248,22 +353,30 @@ export default function AccountsPage() {
                     {isReceivable
                       ? ((item as IReceivableData).finalReceivableBalance ?? 0).toLocaleString('id-ID')
                       : ((item as IPayableData).finalPayableBalance ?? 0).toLocaleString('id-ID')}
-                  </td>
+                  </td>                  
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <button
-                      onClick={() => {
-                        setPaymentCustomerName(customerOrSupplierName);
-                        setIsPaymentModalOpen(true);
-                        setPaymentAmount('');
-                        setPaymentDate(new Date().toISOString().split('T')[0]);
-                        setPaymentNotes('');
-                        setPaymentFormError(null);
-                        setPaymentFormSuccess(null);
-                      }}
-                      className="w-full cursor-pointer md:w-auto flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-green-500 border-2 border-green-500 rounded-xl shadow-sm hover:bg-green-600 hover:border-green-600 hover:shadow-md active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 transition-all duration-150"
-                    >
-                      Input Pembayaran
-                    </button>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleOpenPaymentHistory(customerOrSupplierName)}
+                        className="cursor-pointer flex items-center justify-center px-3 py-2 text-sm font-semibold text-white bg-blue-500 border-2 border-blue-500 rounded-xl shadow-sm hover:bg-blue-600 hover:border-blue-600 hover:shadow-md active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 transition-all duration-150"
+                      >
+                        Details
+                      </button>
+                      <button
+                        onClick={() => {
+                          setPaymentCustomerName(customerOrSupplierName);
+                          setIsPaymentModalOpen(true);
+                          setPaymentAmount('');
+                          setPaymentDate(new Date().toISOString().split('T')[0]);
+                          setPaymentNotes('');
+                          setPaymentFormError(null);
+                          setPaymentFormSuccess(null);
+                        }}
+                        className="cursor-pointer flex items-center justify-center px-3 py-2 text-sm font-semibold text-white bg-green-500 border-2 border-green-500 rounded-xl shadow-sm hover:bg-green-600 hover:border-green-600 hover:shadow-md active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 transition-all duration-150"
+                      >
+                        Input Pembayaran
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -335,10 +448,172 @@ export default function AccountsPage() {
         >
           Simpan Saldo Awal
         </button>
-      </form>
+      </form>    
+      );
+  }
+
+  function renderPaymentHistoryModal() {
+    if (!isPaymentHistoryModalOpen) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center animate-fadeIn"
+          onClick={() => setIsPaymentHistoryModalOpen(false)}>
+        <div 
+          className="bg-[color:var(--card-bg)] rounded-2xl shadow-2xl border border-[color:var(--border-color)] w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden animate-slideUp"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-6 py-5 border-b border-[color:var(--border-color)] bg-[color:var(--card-bg)]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-opacity-10 rounded-lg">
+                  📋
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">Riwayat Pembayaran</h3>
+                  <p className="text-sm text-[color:var(--muted)] mt-1">
+                    {activeTab === 'receivable' ? 'Riwayat Pembayaran Piutang' : 'Riwayat Pembayaran Utang'} - {paymentHistoryCustomerName}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsPaymentHistoryModalOpen(false)}
+                className="p-2 hover:bg-[color:var(--surface)] cursor-pointer rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5 text-[color:var(--muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div className="px-6 py-6 overflow-y-auto max-h-[70vh] bg-[color:var(--background)]">
+            {paymentHistoryError && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+                <div className="flex items-center space-x-2">
+                  <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 15.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <p className="text-sm text-red-700">{paymentHistoryError}</p>
+                </div>
+              </div>
+            )}
+
+            {isLoadingPaymentHistory ? (
+              <div className="text-center py-8">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[color:var(--primary)]"></div>
+                <p className="mt-2 text-[color:var(--muted)]">Memuat riwayat pembayaran...</p>
+              </div>
+            ) : paymentHistory.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-6xl mb-4">📝</div>
+                <p className="text-[color:var(--muted)]">Belum ada riwayat pembayaran</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {paymentHistory.map((payment) => (
+                  <div key={payment._id} className="shadow-sm rounded-xl p-4 bg-[color:var(--card-bg)]">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-4">
+                          <div>
+                            <p className="text-sm text-[color:var(--muted)]">Tanggal</p>
+                            <p className="font-medium text-[color:var(--foreground)]">
+                              {new Date(payment.paymentDate).toLocaleDateString('id-ID')}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-[color:var(--muted)]">Jumlah</p>
+                            {editingPaymentId === payment._id ? (
+                              <div className="flex items-center space-x-2">
+                                <span className="text-[color:var(--foreground)]">Rp</span>
+                                <input
+                                  type="number"
+                                  value={editingAmount}
+                                  onChange={(e) => setEditingAmount(e.target.value)}
+                                  className="w-32 px-2 py-1 text-sm border border-[color:var(--border-color)] rounded bg-[color:var(--card-bg)] text-[color:var(--foreground)]"
+                                  step="any"
+                                  min="0.01"
+                                />
+                              </div>
+                            ) : (
+                              <p className="font-medium text-[color:var(--foreground)]">
+                                Rp {payment.amount.toLocaleString('id-ID')}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm text-[color:var(--muted)]">Keterangan</p>
+                            {editingPaymentId === payment._id ? (
+                              <input
+                                type="text"
+                                value={editingNotes}
+                                onChange={(e) => setEditingNotes(e.target.value)}
+                                placeholder="Tambahkan keterangan..."
+                                className="w-full px-2 py-1 text-sm border border-[color:var(--border-color)] rounded bg-[color:var(--card-bg)] text-[color:var(--foreground)]"
+                              />
+                            ) : (
+                              <p className="text-[color:var(--foreground)]">
+                                {payment.notes || '-'}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-2 text-xs text-[color:var(--muted)]">
+                          Dibuat: {new Date(payment.createdAt).toLocaleString('id-ID')}
+                          {payment.updatedAt !== payment.createdAt && (
+                            <span> • Diubah: {new Date(payment.updatedAt).toLocaleString('id-ID')}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="ml-4">
+                        {editingPaymentId === payment._id ? (
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={handleSaveEditPayment}
+                              disabled={isUpdatingPayment}
+                              className="px-3 py-1 text-sm bg-green-500 cursor-pointer text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-colors"
+                            >
+                              {isUpdatingPayment ? 'Menyimpan...' : 'Simpan'}
+                            </button>
+                            <button
+                              onClick={handleCancelEditPayment}
+                              disabled={isUpdatingPayment}
+                              className="px-3 py-1 text-sm bg-gray-500 cursor-pointer text-white rounded-lg hover:bg-gray-600 disabled:opacity-50 transition-colors"
+                            >
+                              Batal
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleStartEditPayment(payment)}
+                            className="px-3 py-1 cursor-pointer text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                          >
+                            Edit
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="px-6 py-4 bg-[color:var(--card-bg)] border-t border-[color:var(--border-color)]">
+            <div className="flex justify-end">
+              <button
+                onClick={() => setIsPaymentHistoryModalOpen(false)}
+                className="px-5 py-2.5 text-sm cursor-pointer font-medium rounded-xl border border-[color:var(--border-color)] text-[color:var(--foreground)] hover:bg-[color:var(--surface)] transition-colors"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     );
-  };
-  
+  }
+
   function renderPaymentModal() {
     if (!isPaymentModalOpen) return null;
 
@@ -389,7 +664,7 @@ export default function AccountsPage() {
           className="bg-[color:var(--card-bg)] rounded-2xl shadow-2xl border border-[color:var(--border-color)] w-full max-w-lg mx-4 overflow-hidden animate-slideUp"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-6 py-5 border-b border-[color:var(--border-color)] bg-[color:var(--surface)]">
+          <div className="px-6 py-5 border-b border-[color:var(--border-color)] bg-[color:var(--card-bg)]">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-opacity-10 rounded-lg">
@@ -404,7 +679,7 @@ export default function AccountsPage() {
               </div>
               <button
                 onClick={() => setIsPaymentModalOpen(false)}
-                className="p-2 hover:bg-[color:var(--surface)] rounded-lg transition-colors"
+                className="p-2 hover:bg-[color:var(--card-bg)] rounded-lg transition-colors"
               >
                 <svg className="w-5 h-5 text-[color:var(--muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -415,7 +690,7 @@ export default function AccountsPage() {
 
           <div className="px-6 py-6">
             <form id="paymentForm" onSubmit={handlePaymentSubmit} className="space-y-6">
-              <div className="p-4 bg-[color:var(--surface)] rounded-xl">
+              <div className="p-4 bg-[color:var(--card-bg)] rounded-xl">
                 <div className="flex items-center space-x-3">
                   <div className="p-2 bg-opacity-10 rounded-lg">
                     <svg className="w-5 h-5 " fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -514,7 +789,7 @@ export default function AccountsPage() {
             </form>
           </div>
 
-          <div className="px-6 py-4 bg-[color:var(--surface)] border-t border-[color:var(--border-color)]">
+          <div className="px-6 py-4 bg-[color:var(--card-bg)] border-t border-[color:var(--border-color)]">
             <div className="flex justify-end space-x-3">
               <button
                 type="button"
@@ -586,11 +861,11 @@ export default function AccountsPage() {
         >
           Cari
         </button>
-      </div>
-
+      </div>      
       {renderInitialBalanceForm()}
       {renderTable()}
       {isPaymentModalOpen && renderPaymentModal()}
+      {isPaymentHistoryModalOpen && renderPaymentHistoryModal()}
     </div>
   );
 }
