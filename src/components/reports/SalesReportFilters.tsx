@@ -40,7 +40,8 @@ export default function SalesReportFilters({
   const [showItemDropdown, setShowItemDropdown] = useState(false);
   const [selectedItemName, setSelectedItemName] = useState('');
   const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');  const [noSjType, setNoSjType] = useState<'all' | 'noSJ' | 'noSJSby'>('all'); // State for No. SJ filter
+  const [endDate, setEndDate] = useState('');  
+  const [noSjType, setNoSjType] = useState<'all' | 'noSJ' | 'noSJSby'>('all'); // State for No. SJ filter
 
   // Debounce function for item search
   const debounce = <T extends unknown[], R>(
@@ -215,7 +216,8 @@ export default function SalesReportFilters({
       <div>
         <label htmlFor="customer" className={labelStyles}>{customerLabel} (Nama)</label>
         <input type="text" id="customer" value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder={`Kosongkan untuk semua ${customerLabel.toLowerCase()}`} className={formElementStyles} />
-      </div>      <div>
+      </div>      
+      <div>
         <label htmlFor="item" className={labelStyles}>Barang</label>
         {isLoadingItems ? (
           <p className="mt-1 text-sm text-[color:var(--foreground)] opacity-75">Loading items...</p>
