@@ -35,9 +35,87 @@ export default function SalesReportFilters({
   const [month, setMonth] = useState<string>(''); 
   const [customer, setCustomer] = useState('');
   const [itemId, setItemId] = useState('');
+  const [itemSearchTerm, setItemSearchTerm] = useState('');
+  const [filteredItems, setFilteredItems] = useState<IItem[]>([]);
+  const [showItemDropdown, setShowItemDropdown] = useState(false);
+  const [selectedItemName, setSelectedItemName] = useState('');
   const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [noSjType, setNoSjType] = useState<'all' | 'noSJ' | 'noSJSby'>('all'); // State for No. SJ filter
+  const [endDate, setEndDate] = useState('');  const [noSjType, setNoSjType] = useState<'all' | 'noSJ' | 'noSJSby'>('all'); // State for No. SJ filter
+
+  // Debounce function for item search
+  const debounce = <T extends unknown[], R>(
+    func: (...args: T) => Promise<R> | R,
+    waitFor: number
+  ) => {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    return (...args: T): Promise<R> => {
+      return new Promise(resolve => {
+        if (timeout) {
+          clearTimeout(timeout);
+        }
+        timeout = setTimeout(() => resolve(func(...args)), waitFor);
+      });
+    };
+  };
+
+  // Search items based on search term
+  const searchItems = useCallback((searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setFilteredItems([]);
+      setShowItemDropdown(false);
+      return;
+    }
+
+    const filtered = items
+      .filter(item => 
+        item.namaBarang.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .slice(0, 10); // Limit to 10 results
+
+    setFilteredItems(filtered);
+    setShowItemDropdown(filtered.length > 0);
+  }, [items]);
+
+  // Debounced search function
+  const debouncedSearchItems = useCallback(
+    debounce((searchTerm: string) => {
+      searchItems(searchTerm);
+    }, 300),
+    [searchItems]
+  );
+
+  // Handle item search input change
+  const handleItemSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const term = e.target.value;
+    setItemSearchTerm(term);
+    setItemId('');
+    setSelectedItemName('');
+    
+    if (term.trim()) {
+      debouncedSearchItems(term);
+    } else {
+      setFilteredItems([]);
+      setShowItemDropdown(false);
+    }
+  };
+
+  // Handle item selection from dropdown
+  const handleSelectItem = (item: IItem) => {
+    setItemId(item._id as string);
+    setSelectedItemName(item.namaBarang);
+    setItemSearchTerm(item.namaBarang);
+    setFilteredItems([]);
+    setShowItemDropdown(false);
+  };
+
+  // Clear item selection
+  const handleClearItem = () => {
+    setItemId('');
+    setSelectedItemName('');
+    setItemSearchTerm('');
+    setFilteredItems([]);
+    setShowItemDropdown(false);
+  };
 
   const handleApplyFilters = useCallback((event?: FormEvent<HTMLFormElement>) => {
     if (event) event.preventDefault();
@@ -72,7 +150,7 @@ export default function SalesReportFilters({
   }, []);
 
   const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
-  const formElementStyles = "appearance-none block cursor-pointer hover:bg-grey w-full px-3 py-2.5 border border-[color:var(--border-color)] rounded-md shadow-sm placeholder-[color:var(--foreground)] placeholder-opacity-50 sm:text-sm bg-[color:var(--card-bg)] text-[color:var(--foreground)] transition-all duration-150 ease-in-out";
+  const formElementStyles = "appearance-none block cursor-pointer hover:bg-grey w-full px-3 py-2.5 border border-[color:var(--border-color)] rounded-md shadow-sm placeholder-opacity-50 sm:text-sm bg-[color:var(--card-bg)] text-[color:var(--foreground)] transition-all duration-150 ease-in-out";
   const labelStyles = "block text-sm font-medium text-[color:var(--foreground)] opacity-90 mb-1";
 
   return (
@@ -137,17 +215,63 @@ export default function SalesReportFilters({
       <div>
         <label htmlFor="customer" className={labelStyles}>{customerLabel} (Nama)</label>
         <input type="text" id="customer" value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder={`Kosongkan untuk semua ${customerLabel.toLowerCase()}`} className={formElementStyles} />
-      </div>
-
-      <div>
+      </div>      <div>
         <label htmlFor="item" className={labelStyles}>Barang</label>
-        {isLoadingItems ? <p className="mt-1 text-sm text-[color:var(--foreground)] opacity-75">Loading items...</p> : (
-          <select id="item" value={itemId} onChange={(e) => setItemId(e.target.value)} className={formElementStyles}>
-            <option value="">Semua Barang</option>
-            {items.map((item) => (
-              <option key={item._id as string} value={item._id as string}>{item.namaBarang}</option>
-            ))}
-          </select>
+        {isLoadingItems ? (
+          <p className="mt-1 text-sm text-[color:var(--foreground)] opacity-75">Loading items...</p>
+        ) : (
+          <div className="relative">
+            <div className="flex items-center">
+              <input
+                type="text"
+                id="item"
+                value={itemSearchTerm}
+                onChange={handleItemSearchChange}
+                onFocus={() => {
+                  if (itemSearchTerm.trim() && filteredItems.length > 0) {
+                    setShowItemDropdown(true);
+                  }
+                }}
+                placeholder="Ketik nama barang untuk mencari..."
+                className={`${formElementStyles} ${selectedItemName ? 'pr-10' : ''}`}
+              />
+              {selectedItemName && (
+                <button
+                  type="button"
+                  onClick={handleClearItem}
+                  className="absolute right-2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Clear selection"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            
+            {showItemDropdown && filteredItems.length > 0 && (
+              <ul
+                className="absolute z-10 w-full bg-[color:var(--card-bg)] border border-[color:var(--border-color)] rounded-md shadow-lg mt-1 max-h-40 overflow-auto"
+                onMouseLeave={() => setTimeout(() => setShowItemDropdown(false), 200)}
+              >
+                {filteredItems.map((item) => (
+                  <li
+                    key={item._id as string}
+                    onClick={() => handleSelectItem(item)}
+                    className="px-3 py-2 hover:bg-[color:var(--surface)] cursor-pointer text-sm text-[color:var(--foreground)] border-b border-[color:var(--border-color)] last:border-b-0"
+                  >
+                    {item.namaBarang}
+                  </li>
+                ))}
+              </ul>
+            )}
+            
+            {selectedItemName && (
+              <p className="mt-1 text-xs text-[color:var(--foreground)] opacity-75">
+                Terpilih: {selectedItemName}
+              </p>
+            )}
+          </div>
         )}
       </div>
 
