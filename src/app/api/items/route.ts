@@ -64,7 +64,7 @@ const getItemHandler = async (
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '6', 10);
     const searchQuery = searchParams.get('search') || '';
-    const skip = (page - 1) * limit;
+    const fetchAll = searchParams.get('fetchAll') === 'true'; // New parameter to fetch all items
     
     const baseMatchQuery: mongoose.FilterQuery<IItem> = {};
     if (searchQuery) {
@@ -74,8 +74,11 @@ const getItemHandler = async (
     const itemsPipeline: PipelineStage[] = [ 
       { $match: baseMatchQuery },
       { $sort: { createdAt: -1 } },
-      { $skip: skip },
-      { $limit: limit },
+      // Only apply pagination if not fetching all
+      ...(fetchAll ? [] : [
+        { $skip: (page - 1) * limit },
+        { $limit: limit }
+      ]),
       {
         $lookup: {
           from: Transaction.collection.name,
@@ -137,9 +140,17 @@ const getItemHandler = async (
           totalKeluar: 1
         }
       }
-    ];
-
+    ];    
     const itemsWithAggregates = await Item.aggregate(itemsPipeline);
+    if (fetchAll) {
+      return {
+        status: 200,
+        data: {
+          items: itemsWithAggregates as IItem[],
+          totalItems: itemsWithAggregates.length
+        }
+      };
+    }
 
     const totalItemsResult = await Item.aggregate([
       { $match: baseMatchQuery },
