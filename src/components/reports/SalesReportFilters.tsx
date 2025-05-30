@@ -1,7 +1,7 @@
 'use client';
 
 import { IItem } from '@/models/Item';
-import { useState, useEffect, FormEvent, ChangeEvent, useCallback } from 'react';
+import { useState, useEffect, FormEvent, ChangeEvent, useCallback, useRef } from 'react';
 
 interface FilterState {
   view: 'monthly' | 'overall' | 'custom_range';
@@ -41,13 +41,13 @@ export default function SalesReportFilters({
   const [selectedItemName, setSelectedItemName] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');  
-  const [noSjType, setNoSjType] = useState<'all' | 'noSJ' | 'noSJSby'>('all'); // State for No. SJ filter
+  const [noSjType, setNoSjType] = useState<'all' | 'noSJ' | 'noSJSby'>('all');
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Debounce function for item search
   const debounce = <T extends unknown[], R>(
     func: (...args: T) => Promise<R> | R,
     waitFor: number
-  ) => {
+  ): ((...args: T) => Promise<R>) => {
     let timeout: ReturnType<typeof setTimeout> | null = null;
     return (...args: T): Promise<R> => {
       return new Promise(resolve => {
@@ -59,7 +59,6 @@ export default function SalesReportFilters({
     };
   };
 
-  // Search items based on search term
   const searchItems = useCallback((searchTerm: string) => {
     if (!searchTerm.trim()) {
       setFilteredItems([]);
@@ -71,13 +70,12 @@ export default function SalesReportFilters({
       .filter(item => 
         item.namaBarang.toLowerCase().includes(searchTerm.toLowerCase())
       )
-      .slice(0, 10); // Limit to 10 results
+      .slice(0, 10);
 
     setFilteredItems(filtered);
     setShowItemDropdown(filtered.length > 0);
   }, [items]);
 
-  // Debounced search function
   const debouncedSearchItems = useCallback(
     debounce((searchTerm: string) => {
       searchItems(searchTerm);
@@ -85,7 +83,6 @@ export default function SalesReportFilters({
     [searchItems]
   );
 
-  // Handle item search input change
   const handleItemSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
     const term = e.target.value;
     setItemSearchTerm(term);
@@ -100,7 +97,6 @@ export default function SalesReportFilters({
     }
   };
 
-  // Handle item selection from dropdown
   const handleSelectItem = (item: IItem) => {
     setItemId(item._id as string);
     setSelectedItemName(item.namaBarang);
@@ -109,7 +105,6 @@ export default function SalesReportFilters({
     setShowItemDropdown(false);
   };
 
-  // Clear item selection
   const handleClearItem = () => {
     setItemId('');
     setSelectedItemName('');
@@ -141,7 +136,6 @@ export default function SalesReportFilters({
 
     if (customer) filters.customer = customer;
     if (itemId) filters.itemId = itemId;
-    // noSjType is already part of filters initialization
     
     onFilterChange(filters);
   }, [view, year, month, startDate, endDate, customer, itemId, noSjType, onFilterChange]);
@@ -254,7 +248,15 @@ export default function SalesReportFilters({
             {showItemDropdown && filteredItems.length > 0 && (
               <ul
                 className="absolute z-10 w-full bg-[color:var(--card-bg)] border border-[color:var(--border-color)] rounded-md shadow-lg mt-1 max-h-40 overflow-auto"
-                onMouseLeave={() => setTimeout(() => setShowItemDropdown(false), 200)}
+                  onMouseLeave={() => {
+                    timeoutRef.current = setTimeout(() => setShowItemDropdown(false), 200);
+                  }}
+                  onMouseEnter={() => {
+                    if (timeoutRef.current) {
+                      clearTimeout(timeoutRef.current);
+                      timeoutRef.current = null;
+                    }
+                  }}
               >
                 {filteredItems.map((item) => (
                   <li

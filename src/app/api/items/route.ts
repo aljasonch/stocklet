@@ -140,9 +140,8 @@ const getItemHandler = async (
           totalKeluar: 1
         }
       }
-    ];    const itemsWithAggregates = await Item.aggregate(itemsPipeline);
-
-    // Calculate pagination info only if not fetching all
+    ];    
+    const itemsWithAggregates = await Item.aggregate(itemsPipeline);
     if (fetchAll) {
       return {
         status: 200,
