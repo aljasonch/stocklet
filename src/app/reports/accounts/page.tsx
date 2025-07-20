@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 interface IPaymentHistory {
@@ -97,7 +97,7 @@ export default function AccountsPage() {
     return () => clearTimeout(timer);
   }, [filterName]);
 
-  const fetchDistinctCustomersForSearch = async (searchTerm: string) => {
+  const fetchDistinctCustomersForSearch = useCallback(async (searchTerm: string) => {
     if (!searchTerm.trim()) {
       setCustomerSearchResults([]);
       setShowCustomerSearchResults(false);
@@ -120,10 +120,10 @@ export default function AccountsPage() {
     } finally {
       setIsLoadingCustomerSearch(false);
     }
-  };
+  }, []);
 
-  const debouncedFetchCustomers = useCallback(
-    debounce<[string], void>((searchTerm: string) => {
+  const debouncedFetchCustomers = useMemo(
+    () => debounce<[string], void>((searchTerm: string) => {
       fetchDistinctCustomersForSearch(searchTerm);
     }, 500),
     [fetchDistinctCustomersForSearch]

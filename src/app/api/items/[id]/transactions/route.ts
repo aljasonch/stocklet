@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import Transaction, { ITransaction } from '@/models/Transaction';
-import Item, { IItem } from '@/models/Item';
+import Item from '@/models/Item';
 import { withAuthStatic, HandlerResult } from '@/lib/authUtils'; 
 import mongoose from 'mongoose';
 

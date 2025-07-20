@@ -1,7 +1,7 @@
 'use client';
 
 import { IItem } from '@/models/Item';
-import { useState, useEffect, FormEvent, ChangeEvent, useCallback, useRef } from 'react';
+import { useState, useEffect, FormEvent, ChangeEvent, useCallback, useRef, useMemo } from 'react';
 
 interface FilterState {
   view: 'monthly' | 'overall' | 'custom_range';
@@ -76,8 +76,8 @@ export default function SalesReportFilters({
     setShowItemDropdown(filtered.length > 0);
   }, [items]);
 
-  const debouncedSearchItems = useCallback(
-    debounce((searchTerm: string) => {
+  const debouncedSearchItems = useMemo(
+    () => debounce((searchTerm: string) => {
       searchItems(searchTerm);
     }, 300),
     [searchItems]
