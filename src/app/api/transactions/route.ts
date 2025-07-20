@@ -108,10 +108,10 @@ const getHandler = async (
     }
 
     const transactions = await Transaction.find(queryOptions)
-      .populate<{item: IItem}>('item', 'namaBarang')
-      .sort({ tanggal: 1, createdAt: 1 }) 
+      .sort({ tanggal: -1, _id: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     const totalTransactions = await Transaction.countDocuments(queryOptions);
     const totalPages = Math.ceil(totalTransactions / limit);

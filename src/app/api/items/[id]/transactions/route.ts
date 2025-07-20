@@ -35,8 +35,8 @@ const getItemTransactionsHandler = async (
       item: itemId, 
       createdBy: new mongoose.Types.ObjectId(userId)
     })
-      .populate<{item: IItem}>('item', 'namaBarang') 
-      .sort({ tanggal: 1, createdAt: 1 }); 
+      .sort({ tanggal: -1, _id: -1 })
+      .lean(); 
 
     return { status: 200, data: { transactions: transactions as ITransaction[] } };
   } catch (error) {

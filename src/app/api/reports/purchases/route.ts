@@ -65,8 +65,8 @@ const getPurchaseReportHandler = async (
     }
 
     const purchaseReport = await Transaction.find(matchQuery)
-      .populate<{item: IItem}>('item', 'namaBarang')
-      .sort({ tanggal: 1, createdAt: 1 });
+      .sort({ tanggal: -1, _id: -1 })
+      .lean();
 
     return { status: 200, data: { purchaseReport: purchaseReport as ITransaction[] } };
   } catch (error) {

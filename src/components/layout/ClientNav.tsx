@@ -51,7 +51,7 @@
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <Link href="/">
             <span className="text-3xl font-bold text-[color:var(--primary)] cursor-pointer hover:text-[color:var(--primary-hover)] transition-colors duration-200 flex items-center gap-2">
-              📦 Stocklet
+              Stocklet
             </span>
           </Link>    
 
@@ -73,15 +73,15 @@
           </div>     
 
           <div className="hidden font-semibold md:flex space-x-2 items-center">
-            <Link href="/"><span className={navLinkClasses('/')}>🏠 Home</span></Link>
+            <Link href="/"><span className={navLinkClasses('/')}>Home</span></Link>
             
             {isAuthenticated && (
               <>
-                <Link href="/items"><span className={navLinkClasses('/items')}>📦 Stok</span></Link>
-                <Link href="/transactions"><span className={navLinkClasses('/transactions')}>💰 Transaksi</span></Link>
+                <Link href="/items"><span className={navLinkClasses('/items')}>Stok</span></Link>
+                <Link href="/transactions"><span className={navLinkClasses('/transactions')}>Transaksi</span></Link>
                 <div className="relative group">
                   <button className={`${navLinkClasses('/reports')} flex items-center gap-1`}>
-                    📊 Laporan
+                    Laporan
                     <svg className="ml-1 h-4 w-4 transition-transform group-hover:rotate-180" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                     </svg>
@@ -90,17 +90,17 @@
                     <div className="py-2" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
                       <Link href="/reports/sales">
                         <span className={`block px-4 py-3 text-sm font-medium rounded-lg mx-2 transition-colors ${pathname === '/reports/sales' ? 'text-white bg-[color:var(--primary)]' : 'text-[color:var(--foreground)] hover:bg-[color:var(--surface)] hover:text-[color:var(--primary)]'}`} role="menuitem">
-                          📈 Laporan Penjualan
+                          Laporan Penjualan
                         </span>
                       </Link>
                       <Link href="/reports/purchases">
                         <span className={`block px-4 py-3 text-sm font-medium rounded-lg mx-2 transition-colors ${pathname === '/reports/purchases' ? 'text-white bg-[color:var(--primary)]' : 'text-[color:var(--foreground)] hover:bg-[color:var(--surface)] hover:text-[color:var(--primary)]'}`} role="menuitem">
-                          📉 Laporan Pembelian
+                          Laporan Pembelian
                         </span>
                       </Link>
                       <Link href="/reports/accounts">
                         <span className={`block px-4 py-3 text-sm font-medium rounded-lg mx-2 transition-colors ${pathname === '/reports/accounts' ? 'text-white bg-[color:var(--primary)]' : 'text-[color:var(--foreground)] hover:bg-[color:var(--surface)] hover:text-[color:var(--primary)]'}`} role="menuitem">
-                          💳 Piutang/Utang
+                          Piutang/Utang
                         </span>
                       </Link>
                     </div>
