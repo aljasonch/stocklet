@@ -132,11 +132,11 @@
             </button>
             ) : (
               pathname !== '/login' && (
-                <Link href="/login"><span className={navLinkClasses('/login')}>👤 Login</span></Link>
+                <Link href="/login"><span className={navLinkClasses('/login')}>Login</span></Link>
               )
             )}
             {!isAuthenticated && process.env.NEXT_PUBLIC_REGISTRATION_ENABLED === 'true' && pathname !== '/register' && (
-              <Link href="/register"><span className={navLinkClasses('/register')}>📝 Register</span></Link>
+              <Link href="/register"><span className={navLinkClasses('/register')}>Register</span></Link>
             )}
           </div>
         </div>

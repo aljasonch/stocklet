@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, FormEvent, useEffect, useRef } from 'react';
 import { IItem } from '@/models/Item';
 import { TransactionType } from '@/types/enums';
 import { ITransaction } from '@/models/Transaction';
@@ -41,27 +41,16 @@ export default function TransactionForm({ onTransactionAdded, isEditMode = false
   const [showItemSearchResults, setShowItemSearchResults] = useState(false);
   const [selectedItemName, setSelectedItemName] = useState<string>('');
 
+  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const debounce = <T extends unknown[], R>(
-    func: (...args: T) => R,
-    waitFor: number
-  ) => {
-    let timeout: ReturnType<typeof setTimeout> | null = null;
-    return (...args: T): Promise<R> => {
-      return new Promise(resolve => {
-        if (timeout) {
-          clearTimeout(timeout);
-        }
-        timeout = setTimeout(() => resolve(func(...args)), waitFor);
-      });
-    };
+  const debouncedFetchItems = (term: string) => {
+    if (debounceTimeout.current) {
+      clearTimeout(debounceTimeout.current);
+    }
+    debounceTimeout.current = setTimeout(() => {
+      fetchItemsForSearch(term);
+    }, 300);
   };
-  
-  // Explicitly type the debounced function
-  const debouncedFetchItems = debounce<[string], Promise<void>>(
-    (searchTerm: string) => fetchItemsForSearch(searchTerm),
-    300
-  );
 
   const fetchItemsForSearch = async (searchTerm: string) => {
     if (!searchTerm.trim()) {
