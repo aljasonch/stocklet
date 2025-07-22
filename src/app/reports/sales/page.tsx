@@ -15,12 +15,12 @@ interface FilterState {
   itemId?: string;
   startDate?: string;
   endDate?: string;
-  noSjType?: 'all' | 'noSJ' | 'noSJSby'; // Added for No. SJ filter
+  noSjType?: 'all' | 'noSJ' | 'noSJSby';
 }
 
 export default function SalesReportPage() {
   const [reportData, setReportData] = useState<ITransaction[]>([]);
-  const [filters, setFilters] = useState<FilterState>({}); // Use FilterState
+  const [filters, setFilters] = useState<FilterState>({});
   const [isLoadingReport, setIsLoadingReport] = useState(true);
   const [reportError, setReportError] = useState<string | null>(null);
 
@@ -31,7 +31,6 @@ export default function SalesReportPage() {
       setIsLoadingItems(true);
       setItemsError(null);
       try {
-        // Fetch all items for the filter dropdown
         const response = await fetchWithAuth('/api/items?fetchAll=true'); 
         if (!response.ok) {
           const data = await response.json();

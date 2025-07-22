@@ -4,6 +4,8 @@ import { IItem } from '@/models/Item';
 import { useEffect, useState } from 'react';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 import Link from 'next/link'; 
+import { FaEdit, FaRegTrashAlt } from 'react-icons/fa';
+import { LuSettings2 } from 'react-icons/lu'
 
 interface ItemsListProps {
   initialItems?: IItem[];
@@ -73,7 +75,12 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
   const themedTextError = "text-center text-red-600";
 
   if (isLoading) {
-    return <p className={themedTextMuted}>Loading items...</p>;
+    return (
+      <div className="flex items-center justify-center space-x-3 py-6">
+        <div className="w-5 h-5 border-2 border-t-[color:var(--primary)] border-gray-200 rounded-full animate-spin"></div>
+        <p className={themedTextMuted}>Loading items...</p>
+      </div>
+    );
   }
 
   if (error) {
@@ -174,7 +181,7 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
                     }}
                     className="text-yellow-600 cursor-pointer hover:text-yellow-700 font-medium transition-colors duration-150 mr-3"
                   >
-                    Edit Nama
+                    <FaEdit size={18} />
                   </button>
                   <button
                     onClick={async () => {
@@ -211,7 +218,7 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
                     }}
                     className="text-red-600 cursor-pointer hover:text-red-700 font-medium transition-colors duration-150"
                   >
-                    Hapus
+                    <FaRegTrashAlt size={18} />
                   </button>
                   <button
                     onClick={() => {
@@ -224,7 +231,7 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
                     }}
                     className="text-[color:var(--primary)] cursor-pointer hover:opacity-75 font-medium transition-colors duration-150"
                   >
-                    Sesuaikan Stok
+                    <LuSettings2 size={18} />
                   </button>
                 </div>
               </div>

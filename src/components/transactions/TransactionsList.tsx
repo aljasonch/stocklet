@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
+const ITEMS_PER_PAGE = 8;
+
 interface TransactionsListProps {
   refreshKey?: number;
 }
@@ -20,12 +22,12 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalItems, setTotalItems] = useState(0);
-  const itemsPerPage = 8
+
 
   const fetchTransactions = async (pageToFetch: number, currentFilterType: FilterType) => {
     setIsLoading(true);
     setError(null);
-    let url = `/api/transactions?page=${pageToFetch}&limit=${itemsPerPage}`;
+    let url = `/api/transactions?page=${pageToFetch}&limit=${ITEMS_PER_PAGE}`;
     if (currentFilterType !== 'ALL') {
       url += `&tipe=${currentFilterType}`;
     }
@@ -69,7 +71,12 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
   const themedTextError = "text-center text-red-600";
 
   if (isLoading) {
-    return <p className={themedTextMuted}>Loading transactions...</p>;
+    return (
+      <div className="flex items-center justify-center space-x-3 py-6">
+        <div className="w-5 h-5 border-2 border-t-[color:var(--primary)] border-gray-200 rounded-full animate-spin"></div>
+        <p className={themedTextMuted}>Loading transactions...</p>
+      </div>
+    );
   }
 
   if (error) {
@@ -78,15 +85,7 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
     </div>;
   }
 
-  if (isLoading && transactions.length === 0) {
-    return <p className={themedTextMuted}>Loading transactions...</p>;
-  }
 
-  if (error) {
-    return <div className="p-4 my-4 bg-opacity-10 rounded-md">
-        <p className={themedTextError}>Error: {error}</p>
-    </div>;
-  }
 
   if (!isLoading && transactions.length === 0) {
     return (

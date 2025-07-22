@@ -49,7 +49,7 @@ export default function RegisterForm() {
   const labelBaseClasses = "block text-sm font-medium text-[color:var(--foreground)] opacity-90";
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 p-6 sm:p-8 rounded-lg">
+    <form onSubmit={handleSubmit} className="space-y-6 p-6 rounded-lg">
       <div>
         <label
           htmlFor="email-register"
