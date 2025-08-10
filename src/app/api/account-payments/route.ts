@@ -34,7 +34,7 @@ const getAccountPaymentHandler = async (
       paymentType,
       createdBy: new mongoose.Types.ObjectId(userId),
     })
-      .sort({ paymentDate: -1 })
+      .sort({ paymentDate: 1 })
       .select(
         "_id customerName paymentDate amount paymentType notes createdAt updatedAt"
       );

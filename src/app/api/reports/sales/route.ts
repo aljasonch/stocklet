@@ -90,7 +90,7 @@ const getSalesReportHandler = async (
 
 
     const salesReport = await Transaction.find(matchQuery)
-      .sort({ tanggal: -1, _id: -1 })
+      .sort({ tanggal: 1, _id: 1 })
       .lean();
 
     return { status: 200, data: { salesReport: salesReport as ITransaction[] } };
