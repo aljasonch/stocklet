@@ -16,6 +16,12 @@ const COOKIE_MAX_AGE = 15 * 60;
 const CLOCK_SKEW_TOLERANCE = 60;
 const REFRESH_THRESHOLD = 5 * 60;
 
+type DecodedToken = {
+  userId: string;
+  email?: string;
+  exp?: number;
+};
+
 interface PurchaseMatchQuery {
   createdBy: mongoose.Types.ObjectId;
   tipe: TransactionType;
@@ -24,23 +30,39 @@ interface PurchaseMatchQuery {
   item?: mongoose.Types.ObjectId;
 }
 
+interface PurchaseTxLean {
+  _id: mongoose.Types.ObjectId;
+  createdBy: mongoose.Types.ObjectId;
+  tanggal: string | Date;
+  customer: string;
+  noSJ?: string;
+  noInv?: string;
+  noPO?: string;
+  item?: IItem;
+  namaBarangSnapshot?: string;
+  berat?: number;
+  harga?: number;
+  totalHarga: number;
+  createdAt?: Date;
+}
+
 interface SheetRow {
-  'Tanggal': string | 'TOTAL';
+  'Tanggal': string | 'TOTAL' | '';
   'Supplier': string;
   'No. SJ': string;
   'No. Inv': string;
   'No.PO': string;
   'Barang': string;
-  'Berat (kg)': number | undefined | null;
-  'Harga': number | undefined | null;
-  'Subtotal': number | undefined | null;
-  'PPN (11%)': number | undefined | null;
-  'Total': number | undefined | null;
+  'Berat (kg)': number | null;
+  'Harga': number | null;
+  'Subtotal': number | null;
+  'PPN (11%)': number | null;
+  'Total': number | null;
 }
 
 const getExportPurchasesHandler = async (request: NextRequest): Promise<Response> => {
-  const decodedToken = verifyTokenFromCookies(request);
-  if (!decodedToken || !decodedToken.userId) {
+  const decodedToken = verifyTokenFromCookies(request) as DecodedToken | null;
+  if (!decodedToken?.userId) {
     return NextResponse.json({ message: 'Unauthorized: Invalid or expired token' }, { status: 401 });
   }
   const userId = decodedToken.userId;
@@ -63,8 +85,8 @@ const getExportPurchasesHandler = async (request: NextRequest): Promise<Response
     };
 
     if (view === 'monthly' && year && month) {
-      const firstDay = new Date(parseInt(year), parseInt(month) - 1, 1);
-      const lastDay = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999);
+      const firstDay = new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1);
+      const lastDay = new Date(parseInt(year, 10), parseInt(month, 10), 0, 23, 59, 59, 999);
       matchQuery.tanggal = { $gte: firstDay, $lte: lastDay };
     } else if (startDate && endDate) {
       matchQuery.tanggal = {
@@ -72,13 +94,13 @@ const getExportPurchasesHandler = async (request: NextRequest): Promise<Response
         $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)),
       };
     } else if (year && !month && view !== 'custom_range') {
-      const firstDayOfYear = new Date(parseInt(year), 0, 1);
-      const lastDayOfYear = new Date(parseInt(year), 11, 31, 23, 59, 59, 999);
+      const firstDayOfYear = new Date(parseInt(year, 10), 0, 1);
+      const lastDayOfYear = new Date(parseInt(year, 10), 11, 31, 23, 59, 59, 999);
       matchQuery.tanggal = { $gte: firstDayOfYear, $lte: lastDayOfYear };
     }
 
     if (supplier) {
-      matchQuery.customer = { $regex: new RegExp(supplier, 'i') };
+      matchQuery.customer = { $regex: new RegExp(supplier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') };
     }
     if (itemId && mongoose.Types.ObjectId.isValid(itemId)) {
       matchQuery.item = new mongoose.Types.ObjectId(itemId);
@@ -87,37 +109,38 @@ const getExportPurchasesHandler = async (request: NextRequest): Promise<Response
     const purchaseData = await Transaction.find(matchQuery)
       .populate<{ item: IItem }>('item', 'namaBarang')
       .sort({ tanggal: 1, createdAt: 1 })
-      .lean();
+      .lean<PurchaseTxLean[]>();
 
     if (purchaseData.length === 0) {
       return NextResponse.json({ message: 'No data to export for the selected filters.' }, { status: 404 });
     }
 
-    const dataForSheet: SheetRow[] = purchaseData.map((tx: any) => {
-      const ppnAmount = tx.totalHarga * 0.11;
-      const totalWithPPN = tx.totalHarga + ppnAmount;
+    const dataForSheet: SheetRow[] = purchaseData.map((tx) => {
+      const subtotal = tx.totalHarga ?? 0;
+      const ppnAmount = subtotal * 0.11;
+      const totalWithPPN = subtotal + ppnAmount;
 
       return {
         'Tanggal': new Date(tx.tanggal).toLocaleDateString('id-ID'),
         'Supplier': tx.customer,
-        'No. SJ': tx.noSJ || '',
-        'No. Inv': tx.noInv || '',
-        'No.PO': tx.noPO || '',
-        'Barang': (tx.item as IItem)?.namaBarang || tx.namaBarangSnapshot || 'N/A',
+        'No. SJ': tx.noSJ ?? '',
+        'No. Inv': tx.noInv ?? '',
+        'No.PO': tx.noPO ?? '',
+        'Barang': tx.item?.namaBarang ?? tx.namaBarangSnapshot ?? 'N/A',
         'Berat (kg)': tx.berat ?? null,
         'Harga': tx.harga ?? null,
-        'Subtotal': tx.totalHarga ?? null,
+        'Subtotal': subtotal,
         'PPN (11%)': ppnAmount,
         'Total': totalWithPPN,
       };
     });
 
-    const totalBerat = purchaseData.reduce((sum: number, tx: any) => sum + (tx.berat || 0), 0);
-    const totalNilai = purchaseData.reduce((sum: number, tx: any) => sum + (tx.totalHarga || 0), 0);
+    const totalBerat = purchaseData.reduce<number>((sum, tx) => sum + (tx.berat ?? 0), 0);
+    const totalNilai = purchaseData.reduce<number>((sum, tx) => sum + (tx.totalHarga ?? 0), 0);
     const totalPPN = totalNilai * 0.11;
     const totalDenganPPN = totalNilai + totalPPN;
 
-    const emptyRowForSheet: SheetRow = {
+    dataForSheet.push({
       'Tanggal': '',
       'Supplier': '',
       'No. SJ': '',
@@ -129,8 +152,7 @@ const getExportPurchasesHandler = async (request: NextRequest): Promise<Response
       'Subtotal': null,
       'PPN (11%)': null,
       'Total': null,
-    };
-    dataForSheet.push(emptyRowForSheet);
+    });
 
     dataForSheet.push({
       'Tanggal': 'TOTAL',
@@ -146,9 +168,10 @@ const getExportPurchasesHandler = async (request: NextRequest): Promise<Response
       'Total': totalDenganPPN,
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(dataForSheet);
+    const worksheet: XLSX.WorkSheet = XLSX.utils.json_to_sheet(dataForSheet);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Laporan Pembelian');
+
     const columnWidths = [
       { wch: 12 },
       { wch: 40 },
@@ -162,20 +185,21 @@ const getExportPurchasesHandler = async (request: NextRequest): Promise<Response
       { wch: 15 },
       { wch: 18 },
     ];
-    (worksheet as any)['!cols'] = columnWidths;
-    const ref = (worksheet as any)['!ref'] as string | undefined;
+    worksheet['!cols'] = columnWidths;
+
+    const ref = worksheet['!ref'] as string | undefined;
     if (ref) {
       const range = XLSX.utils.decode_range(ref);
       for (let r = 1; r <= range.e.r; r++) {
         const beratAddr = XLSX.utils.encode_cell({ r, c: 6 });
-        const beratCell = (worksheet as any)[beratAddr];
+        const beratCell = worksheet[beratAddr] as XLSX.CellObject | undefined;
         if (beratCell && typeof beratCell.v === 'number') {
           beratCell.t = 'n';
           beratCell.z = '#,##0.00';
         }
         [7, 8, 9, 10].forEach((c) => {
           const addr = XLSX.utils.encode_cell({ r, c });
-          const cell = (worksheet as any)[addr];
+          const cell = worksheet[addr] as XLSX.CellObject | undefined;
           if (cell && typeof cell.v === 'number') {
             cell.t = 'n';
             cell.z = '#,##0';
@@ -184,7 +208,7 @@ const getExportPurchasesHandler = async (request: NextRequest): Promise<Response
       }
     }
 
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
     const headers = new Headers();
     headers.append('Content-Disposition', 'attachment; filename="laporan_pembelian.xlsx"');
     headers.append('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -192,13 +216,12 @@ const getExportPurchasesHandler = async (request: NextRequest): Promise<Response
     const responseToReturn = new NextResponse(Buffer.from(excelBuffer), { status: 200, headers });
 
     const currentTime = Math.floor(Date.now() / 1000);
-    const tokenExp = (decodedToken as any).exp as number | undefined;
+    const tokenExp = decodedToken.exp;
     let newJwtToken: string | null = null;
 
-    if (tokenExp && (tokenExp - currentTime) < (REFRESH_THRESHOLD + CLOCK_SKEW_TOLERANCE)) {
-      const newJti = randomUUID();
+    if (typeof tokenExp === 'number' && (tokenExp - currentTime) < (REFRESH_THRESHOLD + CLOCK_SKEW_TOLERANCE)) {
       newJwtToken = jwt.sign(
-        { userId: decodedToken.userId, email: (decodedToken as any).email, jti: newJti },
+        { userId: decodedToken.userId, email: decodedToken.email, jti: randomUUID() },
         process.env.JWT_SECRET!,
         {
           expiresIn: JWT_EXPIRY,

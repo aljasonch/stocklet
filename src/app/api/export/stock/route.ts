@@ -16,15 +16,26 @@ const COOKIE_MAX_AGE = 15 * 60;
 const CLOCK_SKEW_TOLERANCE = 60;
 const REFRESH_THRESHOLD = 5 * 60;
 
+type DecodedToken = {
+  userId: string;
+  exp?: number;
+};
+
 interface SheetRow {
   [key: string]: string | number | null;
   'Total Berat (kg)': number;
   'Total Nilai': number;
 }
 
+interface SummaryRow {
+  _id: string | null;
+  totalBerat: number;
+  totalNilai: number;
+}
+
 export const GET = async (request: NextRequest): Promise<Response> => {
-  const decodedToken = verifyTokenFromCookies(request);
-  if (!decodedToken || !decodedToken.userId) {
+  const decodedToken = verifyTokenFromCookies(request) as DecodedToken | null;
+  if (!decodedToken?.userId) {
     return NextResponse.json({ message: 'Unauthorized: Invalid token' }, { status: 401 });
   }
   const userId = decodedToken.userId;
@@ -39,7 +50,7 @@ export const GET = async (request: NextRequest): Promise<Response> => {
     let itemNameForFilter: string | null = null;
     if (itemId && mongoose.Types.ObjectId.isValid(itemId)) {
       const itemDoc = await Item.findById(itemId).lean();
-      itemNameForFilter = itemDoc?.namaBarang || null;
+      itemNameForFilter = (itemDoc?.namaBarang as string | undefined) ?? null;
     }
     const customer = searchParams.get('customer');
     const startDate = searchParams.get('startDate');
@@ -47,7 +58,7 @@ export const GET = async (request: NextRequest): Promise<Response> => {
 
     const noSjType = searchParams.get('noSjType');
 
-    const matchQuery: any = {
+    const matchQuery: Record<string, unknown> = {
       createdBy: new mongoose.Types.ObjectId(userId),
     };
 
@@ -59,11 +70,11 @@ export const GET = async (request: NextRequest): Promise<Response> => {
         ? 'Penjualan'
         : 'Semua';
 
-    if (tipeParam && Object.values(TransactionType).includes(tipeParam as TransactionType)) {
+    if (tipeParam && (Object.values(TransactionType) as string[]).includes(tipeParam)) {
       matchQuery.tipe = tipeParam;
     }
 
-    const andConditions: any[] = [];
+    const andConditions: Array<Record<string, unknown>> = [];
 
     if (year) {
       andConditions.push({ $expr: { $eq: [{ $year: '$tanggal' }, Number(year)] } });
@@ -88,7 +99,7 @@ export const GET = async (request: NextRequest): Promise<Response> => {
       matchQuery.$and = andConditions;
     }
 
-    const summary = await Transaction.aggregate([
+    const summary = await Transaction.aggregate<SummaryRow>([
       { $match: matchQuery },
       {
         $group: {
@@ -102,14 +113,14 @@ export const GET = async (request: NextRequest): Promise<Response> => {
 
     const headerNama = tipeParam === TransactionType.PENJUALAN ? 'Customer' : 'Supplier';
 
-    const rows: SheetRow[] = summary.map((s: any) => ({
-      [headerNama]: s._id || '-',
+    const rows: SheetRow[] = summary.map((s) => ({
+      [headerNama]: s._id ?? '-',
       'Total Berat (kg)': Number(Number(s.totalBerat ?? 0).toFixed(2)),
       'Total Nilai': Number(s.totalNilai ?? 0),
     }));
 
-    const totalBeratAll = summary.reduce((sum: number, r: any) => sum + (r.totalBerat ?? 0), 0);
-    const totalNilaiAll = summary.reduce((sum: number, r: any) => sum + (r.totalNilai ?? 0), 0);
+    const totalBeratAll = summary.reduce<number>((sum, r) => sum + (r.totalBerat ?? 0), 0);
+    const totalNilaiAll = summary.reduce<number>((sum, r) => sum + (r.totalNilai ?? 0), 0);
 
     rows.push({
       [headerNama]: 'TOTAL KESELURUHAN',
@@ -117,27 +128,25 @@ export const GET = async (request: NextRequest): Promise<Response> => {
       'Total Nilai': totalNilaiAll,
     });
 
-    const headersArr = [headerNama, 'Total Berat (kg)', 'Total Nilai'];
-    const ws = XLSX.utils.json_to_sheet(rows, { header: headersArr });
+    const headersArr = [headerNama, 'Total Berat (kg)', 'Total Nilai'] as const;
+    const ws: XLSX.WorkSheet = XLSX.utils.json_to_sheet(rows, { header: headersArr as unknown as string[] });
 
-    ws['!cols'] = [
-      { wch: 40 },
-      { wch: 18 },
-      { wch: 20 },
-    ];
+    ws['!cols'] = [{ wch: 40 }, { wch: 18 }, { wch: 20 }];
 
-    const ref = (ws as any)['!ref'] as string | undefined;
+    const ref = ws['!ref'];
     if (ref) {
       const range = XLSX.utils.decode_range(ref);
       for (let r = 1; r <= range.e.r; r++) {
         const beratAddr = XLSX.utils.encode_cell({ r, c: 1 });
-        const beratCell = (ws as any)[beratAddr];
+        const nilaiAddr = XLSX.utils.encode_cell({ r, c: 2 });
+
+        const beratCell = ws[beratAddr] as XLSX.CellObject | undefined;
         if (beratCell && typeof beratCell.v === 'number') {
           beratCell.t = 'n';
           beratCell.z = '#,##0.00';
         }
-        const nilaiAddr = XLSX.utils.encode_cell({ r, c: 2 });
-        const nilaiCell = (ws as any)[nilaiAddr];
+
+        const nilaiCell = ws[nilaiAddr] as XLSX.CellObject | undefined;
         if (nilaiCell && typeof nilaiCell.v === 'number') {
           nilaiCell.t = 'n';
           nilaiCell.z = '"Rp" * #,##0';
@@ -176,8 +185,8 @@ export const GET = async (request: NextRequest): Promise<Response> => {
     const res = new NextResponse(Buffer.from(buffer), { status: 200, headers });
 
     const currentTime = Math.floor(Date.now() / 1000);
-    const tokenExp = (decodedToken as any).exp as number | undefined;
-    if (tokenExp && tokenExp - currentTime < REFRESH_THRESHOLD + CLOCK_SKEW_TOLERANCE) {
+    const tokenExp = decodedToken.exp;
+    if (typeof tokenExp === 'number' && tokenExp - currentTime < REFRESH_THRESHOLD + CLOCK_SKEW_TOLERANCE) {
       const newToken = jwt.sign(
         { userId },
         process.env.JWT_SECRET!,

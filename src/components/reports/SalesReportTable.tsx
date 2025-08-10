@@ -1,7 +1,7 @@
 'use client';
 
 import { ITransaction } from '@/models/Transaction';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface SalesReportTableProps {
   reportData: ITransaction[];
@@ -13,23 +13,32 @@ export default function SalesReportTable({ reportData, isLoading, error }: Sales
   const themedTextMuted = "text-center text-[color:var(--foreground)] opacity-75 py-4";
   const themedTextError = "text-center text-red-600";
 
+  const rowsPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(reportData.length / rowsPerPage));
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
   if (isLoading) {
     return <p className={themedTextMuted}>Loading report data...</p>;
   }
 
   if (error) {
-    return <div className="p-4 my-4 bg-opacity-10 rounded-md">
+    return (
+      <div className="p-4 my-4 bg-opacity-10 rounded-md">
         <p className={themedTextError}>Error: {error}</p>
-    </div>;
+      </div>
+    );
   }
 
   if (reportData.length === 0) {
     return <p className={themedTextMuted}>No sales data found for the selected filters.</p>;
   }
 
-  const rowsPerPage = 10;
-  const [currentPage, setCurrentPage] = useState(1);
-  const totalPages = Math.ceil(reportData.length / rowsPerPage);
   const startIndex = (currentPage - 1) * rowsPerPage;
   const currentData = reportData.slice(startIndex, startIndex + rowsPerPage);
 
@@ -44,7 +53,6 @@ export default function SalesReportTable({ reportData, isLoading, error }: Sales
   const tdTextMuted = `${tdBaseClasses} text-[color:var(--foreground)] opacity-75`;
   const tdTextEmphasized = `${tdBaseClasses} text-[color:var(--foreground)] font-medium`;
   const tfootTdClasses = "px-6 py-3 text-xs font-bold text-[color:var(--foreground)] uppercase tracking-wider";
-
 
   return (
     <div className={`mt-6 bg-[color:var(--card-bg)] shadow-lg overflow-hidden sm:rounded-lg border border-[color:var(--border-color)] transition-opacity duration-500 ease-in-out ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
@@ -66,41 +74,60 @@ export default function SalesReportTable({ reportData, isLoading, error }: Sales
               <th scope="col" className={thClasses}>No.SJ SBY</th>
             </tr>
           </thead>
-          <tbody className="bg-[color:var(--card-bg)] divide-y divide-[color:var(--border-color)]">{
-              currentData.map((tx) => (
-                <tr key={tx._id as string} className="hover:bg-[color:var(--background)] transition-colors duration-150">
-                  <td className={tdTextMuted}>{new Date(tx.tanggal).toLocaleDateString('id-ID')}</td>
-                  <td className={tdTextEmphasized}>{tx.customer}</td>
-                  <td className={tdTextMuted}>{tx.noSJ}</td>
-                  <td className={tdTextMuted}>{tx.noInv}</td>
-                  <td className={tdTextEmphasized}>
-                    {typeof tx.item === 'object' && tx.item !== null && 'namaBarang' in tx.item 
-                      ? tx.item.namaBarang 
-                      : tx.namaBarangSnapshot || 'N/A'}
-                  </td>
-                  <td className={`${tdTextMuted} text-right`}>{tx.berat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td className={`${tdTextMuted} text-right`}>{tx.harga.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</td>
-                  <td className={`${tdTextEmphasized} text-right`}>{tx.totalHarga.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</td>
-                  <td className={`${tdTextMuted} text-right`}>{(tx.totalHarga * ppnRate).toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</td>
-                  <td className={`${tdTextEmphasized} text-right`}>{(tx.totalHarga * (1 + ppnRate)).toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</td>
-                  <td className={tdTextMuted}>{tx.noPO || '-'}</td>
-                  <td className={tdTextMuted}>{tx.noSJSby || '-'}</td>
-                </tr>              
-                ))
-            }</tbody>
-            <tfoot className="bg-[color:var(--background)] border-t border-[color:var(--border-color)]">
+          <tbody className="bg-[color:var(--card-bg)] divide-y divide-[color:var(--border-color)]">
+            {currentData.map((tx) => (
+              <tr key={tx._id as string} className="hover:bg-[color:var(--background)] transition-colors duration-150">
+                <td className={tdTextMuted}>{new Date(tx.tanggal).toLocaleDateString('id-ID')}</td>
+                <td className={tdTextEmphasized}>{tx.customer}</td>
+                <td className={tdTextMuted}>{tx.noSJ}</td>
+                <td className={tdTextMuted}>{tx.noInv}</td>
+                <td className={tdTextEmphasized}>
+                  {typeof tx.item === 'object' && tx.item !== null && 'namaBarang' in tx.item
+                    ? tx.item.namaBarang
+                    : tx.namaBarangSnapshot || 'N/A'}
+                </td>
+                <td className={`${tdTextMuted} text-right`}>
+                  {tx.berat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </td>
+                <td className={`${tdTextMuted} text-right`}>
+                  {tx.harga.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
+                </td>
+                <td className={`${tdTextEmphasized} text-right`}>
+                  {tx.totalHarga.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
+                </td>
+                <td className={`${tdTextMuted} text-right`}>
+                  {(tx.totalHarga * ppnRate).toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
+                </td>
+                <td className={`${tdTextEmphasized} text-right`}>
+                  {(tx.totalHarga * (1 + ppnRate)).toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
+                </td>
+                <td className={tdTextMuted}>{tx.noPO || '-'}</td>
+                <td className={tdTextMuted}>{tx.noSJSby || '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot className="bg-[color:var(--background)] border-t border-[color:var(--border-color)]">
             <tr>
               <td colSpan={5} className={`${tfootTdClasses} text-left`}>Total Keseluruhan</td>
-              <td className={`${tfootTdClasses} text-right`}>{totalBerat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg</td>
+              <td className={`${tfootTdClasses} text-right`}>
+                {totalBerat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg
+              </td>
               <td className={tfootTdClasses}>{null}</td>
-              <td className={`${tfootTdClasses} text-right`}>{totalNilai.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</td>
-              <td className={`${tfootTdClasses} text-right`}>{totalPPN.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</td>
-              <td className={`${tfootTdClasses} text-right`}>{totalDenganPPN.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</td>
+              <td className={`${tfootTdClasses} text-right`}>
+                {totalNilai.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
+              </td>
+              <td className={`${tfootTdClasses} text-right`}>
+                {totalPPN.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
+              </td>
+              <td className={`${tfootTdClasses} text-right`}>
+                {totalDenganPPN.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
+              </td>
               <td colSpan={2} className={tfootTdClasses}>{null}</td>
             </tr>
           </tfoot>
         </table>
       </div>
+
       <div className="flex justify-between items-center p-4">
         <button
           onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}

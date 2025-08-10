@@ -18,6 +18,8 @@ interface FilterState {
   noSjType?: 'all' | 'noSJ' | 'noSJSby';
 }
 
+type FiltersInput = Partial<FilterState>;
+
 interface SummaryRow {
   _id: string;
   totalBerat: number;
@@ -25,6 +27,17 @@ interface SummaryRow {
 }
 
 export default function ItemsReportPage() {
+  const [summaryData, setSummaryData] = useState<SummaryRow[]>([]);
+  const [filters, setFilters] = useState<FilterState>({});
+  const [tipe, setTipe] = useState<TransactionType>(TransactionType.PENJUALAN);
+
+  const [items, setItems] = useState<IItem[]>([]);
+  const [isLoadingItems, setIsLoadingItems] = useState(true);
+  const [itemsError, setItemsError] = useState<string | null>(null);
+
+  const [isLoadingSummary, setIsLoadingSummary] = useState(true);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+
   const handleExport = () => {
     const queryParams = new URLSearchParams();
     if (filters.year) queryParams.append('year', filters.year);
@@ -36,16 +49,6 @@ export default function ItemsReportPage() {
     queryParams.append('tipe', tipe);
     window.location.href = `/api/export/stock?${queryParams.toString()}`;
   };
-  const [summaryData, setSummaryData] = useState<SummaryRow[]>([]);
-  const [filters, setFilters] = useState<FilterState>({});
-  const [tipe, setTipe] = useState<TransactionType>(TransactionType.PENJUALAN);
-
-  const [items, setItems] = useState<IItem[]>([]);
-  const [isLoadingItems, setIsLoadingItems] = useState(true);
-  const [itemsError, setItemsError] = useState<string | null>(null);
-
-  const [isLoadingSummary, setIsLoadingSummary] = useState(true);
-  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchItems = async () => {
@@ -107,18 +110,8 @@ export default function ItemsReportPage() {
     }
   }, [filters, tipe, fetchSummaryData]);
 
-  const handleFilterChange = useCallback((newFilters: any) => {
-    const mapped: FilterState = {
-      view: newFilters.view,
-      year: newFilters.year,
-      month: newFilters.month,
-      itemId: newFilters.itemId,
-      customer: newFilters.customer,
-      startDate: newFilters.startDate,
-      endDate: newFilters.endDate,
-      noSjType: newFilters.noSjType,
-    };
-    setFilters(mapped);
+  const handleFilterChange = useCallback((newFilters: FiltersInput) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
   }, []);
 
   return (

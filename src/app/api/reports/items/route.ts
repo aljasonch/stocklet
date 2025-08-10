@@ -10,6 +10,14 @@ interface MatchQuery {
   tipe?: TransactionType;
   tanggal?: { $gte: Date; $lte: Date };
   item?: mongoose.Types.ObjectId;
+  customer?: { $regex: RegExp };
+  $and?: Array<Record<string, unknown>>;
+}
+
+interface SummaryRow {
+  _id: string | null;
+  totalBerat: number;
+  totalNilai: number;
 }
 
 const getItemsSummaryHandler = async (
@@ -29,25 +37,28 @@ const getItemsSummaryHandler = async (
   const startDate = searchParams.get('startDate');
   const endDate = searchParams.get('endDate');
   const tipe = searchParams.get('tipe') as TransactionType | null;
-  const noSjType = searchParams.get('noSjType') as 'all' | 'noSJ' | 'noSJSby' | null
+  const noSjType = searchParams.get('noSjType') as 'all' | 'noSJ' | 'noSJSby' | null;
 
   const matchQuery: MatchQuery = {
     createdBy: new mongoose.Types.ObjectId(userId),
-  } as MatchQuery;
+  };
 
   if (tipe && Object.values(TransactionType).includes(tipe)) {
     matchQuery.tipe = tipe;
   }
 
   if (startDate && endDate) {
-    matchQuery.tanggal = { $gte: new Date(startDate), $lte: new Date(new Date(endDate).setHours(23,59,59,999)) };
+    matchQuery.tanggal = {
+      $gte: new Date(startDate),
+      $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)),
+    };
   } else if (year && month) {
-    const firstDay = new Date(parseInt(year), parseInt(month) - 1, 1);
-    const lastDay = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999);
+    const firstDay = new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1);
+    const lastDay = new Date(parseInt(year, 10), parseInt(month, 10), 0, 23, 59, 59, 999);
     matchQuery.tanggal = { $gte: firstDay, $lte: lastDay };
   } else if (year && !month) {
-    const firstDayOfYear = new Date(parseInt(year), 0, 1);
-    const lastDayOfYear = new Date(parseInt(year), 11, 31, 23, 59, 59, 999);
+    const firstDayOfYear = new Date(parseInt(year, 10), 0, 1);
+    const lastDayOfYear = new Date(parseInt(year, 10), 11, 31, 23, 59, 59, 999);
     matchQuery.tanggal = { $gte: firstDayOfYear, $lte: lastDayOfYear };
   }
 
@@ -58,25 +69,25 @@ const getItemsSummaryHandler = async (
   if (customer) {
     const trimmed = customer.trim();
     const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    (matchQuery as any).customer = { $regex: new RegExp(escaped, 'i') };
+    matchQuery.customer = { $regex: new RegExp(escaped, 'i') };
   }
 
-  const andConditions: any[] = [];
+  const andConditions: Array<Record<string, unknown>> = [];
   if (noSjType && noSjType !== 'all') {
     if (noSjType === 'noSJ') {
       andConditions.push({ noSJ: { $exists: true, $nin: [null, ''] } });
-      andConditions.push({ $or: [ { noSJSby: { $exists: false } }, { noSJSby: null }, { noSJSby: '' } ] });
+      andConditions.push({ $or: [{ noSJSby: { $exists: false } }, { noSJSby: null }, { noSJSby: '' }] });
     } else if (noSjType === 'noSJSby') {
       andConditions.push({ noSJSby: { $exists: true, $nin: [null, ''] } });
     }
   }
   if (andConditions.length > 0) {
-    (matchQuery as any).$and = andConditions;
+    matchQuery.$and = andConditions;
   }
 
   try {
-    const summary = await Transaction.aggregate([
-      { $match: matchQuery as any },
+    const summary = await Transaction.aggregate<SummaryRow>([
+      { $match: matchQuery },
       {
         $group: {
           _id: '$customer',

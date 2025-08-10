@@ -17,6 +17,11 @@ const COOKIE_MAX_AGE = 15 * 60;
 const CLOCK_SKEW_TOLERANCE = 60;
 const REFRESH_THRESHOLD = 5 * 60;
 
+type DecodedToken = {
+  userId: string;
+  exp?: number;
+};
+
 interface SheetRow {
   'Jenis': 'REKAP' | 'PEMBAYARAN';
   'Nama': string;
@@ -27,9 +32,26 @@ interface SheetRow {
   'Saldo': number | null;
 }
 
+interface TransAggRow {
+  _id: string | null;
+  totalTrans: number;
+}
+
+interface LedgerDoc {
+  customerName: string;
+  initialReceivable?: number;
+  initialPayable?: number;
+}
+
+interface PaymentDoc {
+  paymentDate?: Date | string;
+  notes?: string;
+  amount: number;
+}
+
 export const GET = async (request: NextRequest): Promise<Response> => {
-  const decodedToken = verifyTokenFromCookies(request);
-  if (!decodedToken || !decodedToken.userId) {
+  const decodedToken = verifyTokenFromCookies(request) as DecodedToken | null;
+  if (!decodedToken?.userId) {
     return NextResponse.json({ message: 'Unauthorized: Invalid or expired token' }, { status: 401 });
   }
   const userId = decodedToken.userId;
@@ -43,25 +65,19 @@ export const GET = async (request: NextRequest): Promise<Response> => {
       return NextResponse.json({ message: 'Invalid type parameter' }, { status: 400 });
     }
 
-    const nameFilter = searchParams.get(type === 'receivable' ? 'customerName' : 'supplierName');
-    let escapedName = '';
-    if (nameFilter) {
-      escapedName = nameFilter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
+    const nameFilterParam = searchParams.get(type === 'receivable' ? 'customerName' : 'supplierName');
+    const escapedName = nameFilterParam ? nameFilterParam.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
 
-    const matchStage: mongoose.PipelineStage.Match = {
-      $match: {
-        createdBy: new mongoose.Types.ObjectId(userId),
-        tipe: type === 'receivable' ? TransactionType.PENJUALAN : TransactionType.PEMBELIAN,
-      },
-    } as any;
-
+    const match: Record<string, unknown> = {
+      createdBy: new mongoose.Types.ObjectId(userId),
+      tipe: type === 'receivable' ? TransactionType.PENJUALAN : TransactionType.PEMBELIAN,
+    };
     if (escapedName) {
-      (matchStage.$match as any).customer = { $regex: new RegExp(escapedName, 'i') };
+      match.customer = { $regex: new RegExp(escapedName, 'i') };
     }
 
-    const transAgg = await Transaction.aggregate([
-      matchStage,
+    const transAgg = await Transaction.aggregate<TransAggRow>([
+      { $match: match },
       {
         $group: {
           _id: '$customer',
@@ -70,25 +86,22 @@ export const GET = async (request: NextRequest): Promise<Response> => {
       },
     ]);
 
-    const ledgerDocs = await CustomerLedger.find({
+    const ledgerDocs = (await CustomerLedger.find({
       createdBy: new mongoose.Types.ObjectId(userId),
-    }).lean();
+    }).lean()) as LedgerDoc[];
 
     const summaryRows: SheetRow[] = [];
     const paymentRows: SheetRow[] = [];
 
-    for (const rec of transAgg as any[]) {
-      const name = (rec._id as string) || '-';
+    for (const rec of transAgg) {
+      const name = rec._id ?? '-';
 
-      const ledger = ledgerDocs.find((l: any) => l.customerName === name);
-      const initial =
-        ledger
-          ? (type === 'receivable'
-              ? (ledger.initialReceivable ?? 0)
-              : (ledger.initialPayable ?? 0))
-          : 0;
+      const ledger = ledgerDocs.find((l) => l.customerName === name);
+      const initial = ledger
+        ? (type === 'receivable' ? (ledger.initialReceivable ?? 0) : (ledger.initialPayable ?? 0))
+        : 0;
 
-      const paymentsAgg = await AccountPayment.aggregate([
+      const paymentsAgg = await AccountPayment.aggregate<{ _id: null; totalPaid: number }>([
         {
           $match: {
             createdBy: new mongoose.Types.ObjectId(userId),
@@ -107,8 +120,8 @@ export const GET = async (request: NextRequest): Promise<Response> => {
         },
       ]);
 
-      const totalPayments = (paymentsAgg[0]?.totalPaid ?? 0) as number;
-      const saldoAkhir = (initial ?? 0) + (rec.totalTrans ?? 0) - totalPayments;
+      const totalPayments = paymentsAgg[0]?.totalPaid ?? 0;
+      const saldoAkhir = initial + (rec.totalTrans ?? 0) - totalPayments;
 
       summaryRows.push({
         'Jenis': 'REKAP',
@@ -120,7 +133,7 @@ export const GET = async (request: NextRequest): Promise<Response> => {
         'Saldo': saldoAkhir,
       });
 
-      const payments = await AccountPayment.find({
+      const payments = (await AccountPayment.find({
         customerName: name,
         paymentType:
           type === 'receivable'
@@ -129,24 +142,24 @@ export const GET = async (request: NextRequest): Promise<Response> => {
         createdBy: new mongoose.Types.ObjectId(userId),
       })
         .sort({ paymentDate: 1 })
-        .lean();
+        .lean()) as PaymentDoc[];
 
-      for (const p of payments as any[]) {
+      for (const p of payments) {
         paymentRows.push({
           'Jenis': 'PEMBAYARAN',
           'Nama': name,
           'Tanggal': p.paymentDate ? new Date(p.paymentDate).toLocaleDateString('id-ID') : null,
-          'Keterangan': p.notes || '',
-          'Debit': type === 'receivable' ? null : (p.amount ?? 0), // utang: pembayaran di debit
-          'Kredit': type === 'receivable' ? (p.amount ?? 0) : null, // piutang: pembayaran di kredit
+          'Keterangan': p.notes ?? '',
+          'Debit': type === 'payable' ? (p.amount ?? 0) : null,
+          'Kredit': type === 'receivable' ? (p.amount ?? 0) : null,
           'Saldo': null,
         });
       }
     }
 
     const headers = ['Jenis', 'Nama', 'Tanggal', 'Keterangan', 'Debit', 'Kredit', 'Saldo'] as const;
-    const summaryWs = XLSX.utils.json_to_sheet(summaryRows, { header: headers as any });
-    const paymentWs = XLSX.utils.json_to_sheet(paymentRows, { header: headers as any });
+    const summaryWs: XLSX.WorkSheet = XLSX.utils.json_to_sheet(summaryRows, { header: headers as unknown as string[] });
+    const paymentWs: XLSX.WorkSheet = XLSX.utils.json_to_sheet(paymentRows, { header: headers as unknown as string[] });
 
     const colWidths = [
       { wch: 15 },
@@ -157,17 +170,17 @@ export const GET = async (request: NextRequest): Promise<Response> => {
       { wch: 18 },
       { wch: 18 },
     ];
-    (summaryWs as any)['!cols'] = colWidths;
-    (paymentWs as any)['!cols'] = colWidths;
+    summaryWs['!cols'] = colWidths;
+    paymentWs['!cols'] = colWidths;
 
     const applyNumberFormats = (ws: XLSX.WorkSheet) => {
-      const ref = (ws as any)['!ref'] as string | undefined;
+      const ref = ws['!ref'] as string | undefined;
       if (!ref) return;
       const range = XLSX.utils.decode_range(ref);
       for (let r = 1; r <= range.e.r; r++) {
         [4, 5, 6].forEach((c) => {
           const addr = XLSX.utils.encode_cell({ r, c });
-          const cell = (ws as any)[addr];
+          const cell = ws[addr] as XLSX.CellObject | undefined;
           if (cell && typeof cell.v === 'number') {
             cell.t = 'n';
             cell.z = '"Rp" * #,##0';
@@ -198,9 +211,8 @@ export const GET = async (request: NextRequest): Promise<Response> => {
     const responseToReturn = new NextResponse(Buffer.from(excelBuffer), { status: 200, headers: headersResp });
 
     const currentTime = Math.floor(Date.now() / 1000);
-    const tokenExp = (decodedToken as any).exp as number | undefined;
-    if (tokenExp && (tokenExp - currentTime) < (REFRESH_THRESHOLD + CLOCK_SKEW_TOLERANCE)) {
-      const newJti = randomUUID();
+    const tokenExp = decodedToken.exp;
+    if (typeof tokenExp === 'number' && (tokenExp - currentTime) < (REFRESH_THRESHOLD + CLOCK_SKEW_TOLERANCE)) {
       const newJwtToken = jwt.sign(
         { userId },
         process.env.JWT_SECRET!,
@@ -208,7 +220,7 @@ export const GET = async (request: NextRequest): Promise<Response> => {
           issuer: JWT_ISSUER,
           audience: JWT_AUDIENCE,
           expiresIn: JWT_EXPIRY,
-          jwtid: newJti,
+          jwtid: randomUUID(),
         }
       );
       responseToReturn.headers.append(
