@@ -197,7 +197,7 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
           <tbody className="bg-[color:var(--card-bg)] divide-y divide-[color:var(--border-color)]">
             {transactions.map((tx) => (
               <tr key={tx._id as string} className="hover:bg-[color:var(--background)] transition-colors duration-150">
-                <td className={tdTextMuted}>{new Date(tx.tanggal).toLocaleDateString('id-ID')}</td>
+                <td className={tdTextMuted}>{new Date(tx.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</td>
                 <td className={`${tdBaseClasses}`}>
                   <span className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
                     tx.tipe === 'PENJUALAN' 
@@ -257,7 +257,7 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
         <button
           onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
           disabled={currentPage === 1 || isLoading}
-          className="px-4 py-2 text-sm font-medium rounded-md cursor-pointer bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 text-sm font-medium rounded-md cursor-pointer bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent"
         >
           Previous
         </button>
@@ -267,7 +267,7 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
         <button
           onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
           disabled={currentPage === totalPages || isLoading}
-          className="px-4 py-2 text-sm font-medium rounded-md cursor-pointer bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 text-sm font-medium rounded-md cursor-pointer bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent"
         >
           Next
         </button>
