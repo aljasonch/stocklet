@@ -129,6 +129,18 @@ export default function AccountsPage() {
     [fetchDistinctCustomersForSearch]
   );
 
+  const handleExport = () => {
+    const queryParams = new URLSearchParams();
+    queryParams.append('type', activeTab);
+    if (filterName.trim()) {
+      queryParams.append(
+        activeTab === 'receivable' ? 'customerName' : 'supplierName',
+        filterName.trim()
+      );
+    }
+    window.location.href = `/api/export/accounts?${queryParams.toString()}`;
+  };
+
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -389,7 +401,7 @@ export default function AccountsPage() {
 
   const renderInitialBalanceForm = () => {
     return (
-      <form onSubmit={handleSetInitialBalance} className="mt-6 p-6 shadow-md rounded-lg bg-gray-50 space-y-4">
+      <form onSubmit={handleSetInitialBalance} className="mt-6 p-6 shadow-md rounded-lg bg-white space-y-4">
         <h3 className="text-lg font-medium">Atur Saldo Awal {activeTab === 'receivable' ? 'Piutang' : 'Utang'}</h3>
         {error && <p className="text-sm text-red-500">{error}</p>}
         <div className="relative">
@@ -444,7 +456,7 @@ export default function AccountsPage() {
         {balanceFormSuccess && <p className="text-sm text-green-500">{balanceFormSuccess}</p>}
         <button
           type="submit"
-          className="px-4 py-2 bg-[color:var(--primary)] cursor-pointer text-white rounded-md text-sm font-medium"
+          className="px-4 py-2 bg-[color:var(--primary)] hover:bg-[color:var(--btn-hover-bg-primary)] cursor-pointer text-white rounded-md text-sm font-medium"
         >
           Simpan Saldo Awal
         </button>
@@ -814,7 +826,15 @@ export default function AccountsPage() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">Laporan Piutang & Utang</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Laporan Piutang & Utang</h1>
+        <button
+          onClick={handleExport}
+          className="px-4 py-2 bg-green-600 cursor-pointer text-white rounded-md hover:bg-green-700 text-sm font-medium"
+        >
+          Ekspor ke Excel
+        </button>
+      </div>
 
       <div className="mb-4 border-b border-gray-200">
         <nav className="-mb-px flex space-x-8" aria-label="Tabs">

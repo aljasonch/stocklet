@@ -1,6 +1,7 @@
 'use client';
 
 import { ITransaction } from '@/models/Transaction';
+import { useState } from 'react';
 
 interface SalesReportTableProps {
   reportData: ITransaction[];
@@ -25,6 +26,12 @@ export default function SalesReportTable({ reportData, isLoading, error }: Sales
   if (reportData.length === 0) {
     return <p className={themedTextMuted}>No sales data found for the selected filters.</p>;
   }
+
+  const rowsPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.ceil(reportData.length / rowsPerPage);
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const currentData = reportData.slice(startIndex, startIndex + rowsPerPage);
 
   const totalBerat = reportData.reduce((sum, tx) => sum + tx.berat, 0);
   const totalNilai = reportData.reduce((sum, tx) => sum + tx.totalHarga, 0);
@@ -60,7 +67,7 @@ export default function SalesReportTable({ reportData, isLoading, error }: Sales
             </tr>
           </thead>
           <tbody className="bg-[color:var(--card-bg)] divide-y divide-[color:var(--border-color)]">{
-              reportData.map((tx) => (
+              currentData.map((tx) => (
                 <tr key={tx._id as string} className="hover:bg-[color:var(--background)] transition-colors duration-150">
                   <td className={tdTextMuted}>{new Date(tx.tanggal).toLocaleDateString('id-ID')}</td>
                   <td className={tdTextEmphasized}>{tx.customer}</td>
@@ -93,6 +100,23 @@ export default function SalesReportTable({ reportData, isLoading, error }: Sales
             </tr>
           </tfoot>
         </table>
+      </div>
+      <div className="flex justify-between items-center p-4">
+        <button
+          onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+          disabled={currentPage === 1}
+          className="px-4 py-2 text-sm cursor-pointer font-medium rounded-md bg-[color:var(--btn-bg)] hover:bg-[var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent"
+        >
+          Prev
+        </button>
+        <span className="text-sm text-[color:var(--foreground)]">{currentPage} / {totalPages}</span>
+        <button
+          onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+          disabled={currentPage === totalPages}
+          className="px-4 py-2 text-sm cursor-pointer font-medium rounded-md bg-[color:var(--btn-bg)] hover:bg-[var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent"
+        >
+          Next
+        </button>
       </div>
     </div>
   );

@@ -116,6 +116,11 @@ export default function ClientNav() {
                         Laporan Pembelian
                       </span>
                     </Link>
+                    <Link href="/reports/items">
+                      <span className={`block px-4 py-3 text-sm font-medium rounded-lg mx-2 transition-colors ${pathname === '/reports/items' ? 'text-[color:var(--primary)]' : 'text-[color:var(--foreground)] hover:bg-[color:var(--surface)] hover:text-[color:var(--primary)]'}`} role="menuitem">
+                        Laporan Stok
+                      </span>
+                    </Link>
                     <Link href="/reports/accounts">
                       <span className={`block px-4 py-3 text-sm font-medium rounded-lg mx-2 transition-colors ${pathname === '/reports/accounts' ? 'text-[color:var(--primary)]' : 'text-[color:var(--foreground)] hover:bg-[color:var(--surface)] hover:text-[color:var(--primary)]'}`} role="menuitem">
                         Piutang/Utang

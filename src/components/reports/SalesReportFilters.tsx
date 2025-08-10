@@ -160,7 +160,7 @@ export default function SalesReportFilters({
           onChange={(e: ChangeEvent<HTMLSelectElement>) => setView(e.target.value as FilterState['view'])} 
           className={formElementStyles}
         >
-          <option value="overall">Keseluruhan (Default: Tahun Ini)</option>
+          <option value="overall">Per Tahun (Default)</option>
           <option value="monthly">Per Bulan</option>
           <option value="custom_range">Rentang Tanggal Kustom</option>
         </select>
@@ -186,9 +186,8 @@ export default function SalesReportFilters({
       
       {view === 'overall' && (
          <div>
-            <label htmlFor="year-overall" className={labelStyles}>Tahun (Opsional, jika kosong tampil semua)</label>
+            <label htmlFor="year-overall" className={labelStyles}>Tahun</label>
             <select id="year-overall" value={year} onChange={(e) => setYear(e.target.value)} className={formElementStyles}>
-              <option value="">Semua Tahun</option>
               {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
         </div>

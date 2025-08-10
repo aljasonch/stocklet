@@ -43,13 +43,19 @@ const postHandler = async (
       return { status: 404, error: 'Item not found.' };
     }
 
-    // Removed stock check to allow transactions even if stock is zero or negative.
-    // if (tipe === TransactionType.PENJUALAN && item.stokSaatIni < berat) {
-    //   return { 
-    //     status: 400, 
-    //     error: `Stok tidak mencukupi untuk ${item.namaBarang}. Stok saat ini: ${item.stokSaatIni} kg.` 
-    //   };
-    // }
+    if (tipe === TransactionType.PENJUALAN && item.stokSaatIni < berat) {
+      return {
+        status: 400,
+        error: `Stok tidak mencukupi untuk ${item.namaBarang}. Stok saat ini: ${item.stokSaatIni.toFixed(2)} kg.`
+      };
+    }
+
+    if (tipe === TransactionType.PENJUALAN) {
+      item.stokSaatIni -= berat;
+    } else if (tipe === TransactionType.PEMBELIAN) {
+      item.stokSaatIni += berat;
+    }
+    await item.save();
 
     const totalHarga = berat * harga;
 
@@ -108,7 +114,7 @@ const getHandler = async (
     }
 
     const transactions = await Transaction.find(queryOptions)
-      .sort({ tanggal: -1, _id: -1 })
+      .sort({ tanggal: 1, _id: 1 })
       .skip(skip)
       .limit(limit)
       .lean();
