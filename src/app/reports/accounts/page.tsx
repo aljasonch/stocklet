@@ -73,6 +73,7 @@ export default function AccountsPage() {
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const [editingAmount, setEditingAmount] = useState('');
   const [editingNotes, setEditingNotes] = useState('');
+  const [editingDate, setEditingDate] = useState('');
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
 
   const debounce = <T extends unknown[], R>(
@@ -263,6 +264,7 @@ export default function AccountsPage() {
           paymentId,
           amount,
           notes,
+          paymentDate: editingDate || undefined,
         }),
       });
       
@@ -277,6 +279,7 @@ export default function AccountsPage() {
       setEditingPaymentId(null);
       setEditingAmount('');
       setEditingNotes('');
+      setEditingDate('');
     } catch (err: unknown) {
       setPaymentHistoryError(err instanceof Error ? err.message : 'Failed to update payment');
     } finally {
@@ -295,12 +298,19 @@ export default function AccountsPage() {
     setEditingPaymentId(payment._id);
     setEditingAmount(payment.amount.toString());
     setEditingNotes(payment.notes || '');
+    try {
+      const d = new Date(payment.paymentDate);
+      setEditingDate(d.toISOString().split('T')[0]);
+    } catch (_e) {
+      setEditingDate('');
+    }
   };
 
   const handleCancelEditPayment = () => {
     setEditingPaymentId(null);
     setEditingAmount('');
     setEditingNotes('');
+    setEditingDate('');
     setPaymentHistoryError(null);
   };
 
@@ -529,9 +539,18 @@ export default function AccountsPage() {
                         <div className="flex items-center space-x-4">
                           <div>
                             <p className="text-sm text-[color:var(--muted)]">Tanggal</p>
-                            <p className="font-medium text-[color:var(--foreground)]">
-                              {new Date(payment.paymentDate).toLocaleDateString('id-ID')}
-                            </p>
+                            {editingPaymentId === payment._id ? (
+                              <input
+                                type="date"
+                                value={editingDate}
+                                onChange={(e) => setEditingDate(e.target.value)}
+                                className="px-2 py-1 text-sm border border-[color:var(--border-color)] rounded bg-[color:var(--card-bg)] text-[color:var(--foreground)]"
+                              />
+                            ) : (
+                              <p className="font-medium text-[color:var(--foreground)]">
+                                {new Date(payment.paymentDate).toLocaleDateString('id-ID')}
+                              </p>
+                            )}
                           </div>
                           <div>
                             <p className="text-sm text-[color:var(--muted)]">Jumlah</p>

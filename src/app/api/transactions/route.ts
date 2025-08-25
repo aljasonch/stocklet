@@ -114,7 +114,7 @@ const getHandler = async (
     }
 
     const transactions = await Transaction.find(queryOptions)
-      .sort({ tanggal: 1, _id: 1 })
+      .sort({ tanggal: -1, _id: -1 })
       .skip(skip)
       .limit(limit)
       .lean();

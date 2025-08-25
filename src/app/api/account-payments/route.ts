@@ -115,7 +115,7 @@ const putAccountPaymentHandler = async (
 
   try {
     const body = await req.json();
-    const { paymentId, amount, notes } = body;
+    const { paymentId, amount, notes, paymentDate } = body;
 
     if (!paymentId || !mongoose.Types.ObjectId.isValid(paymentId)) {
       return { status: 400, error: "Valid payment ID is required." };
@@ -123,6 +123,10 @@ const putAccountPaymentHandler = async (
 
     if (typeof amount !== "number" || amount <= 0) {
       return { status: 400, error: "Amount must be a positive number." };
+    }
+
+    if (paymentDate !== undefined && !paymentDate) {
+      return { status: 400, error: 'Payment date is required when provided.' };
     }
 
     const payment = await AccountPayment.findOne({
@@ -137,6 +141,10 @@ const putAccountPaymentHandler = async (
     payment.amount = amount;
     if (notes !== undefined) {
       payment.notes = notes || undefined;
+    }
+    if (paymentDate !== undefined) {
+      // update paymentDate only when provided (allow empty string handled above)
+      payment.paymentDate = new Date(paymentDate);
     }
 
     await payment.save();
