@@ -147,6 +147,7 @@ const putAccountPaymentHandler = async (
     if (notes !== undefined) {
       payment.notes = notes || undefined;
     }
+    if (paymentDate !== undefined) {
       const parsedDate = new Date(paymentDate);
       if (isNaN(parsedDate.getTime())) {
         return { status: 400, error: "Invalid payment date format." };
