@@ -125,8 +125,13 @@ const putAccountPaymentHandler = async (
       return { status: 400, error: "Amount must be a positive number." };
     }
 
-    if (paymentDate !== undefined && !paymentDate) {
-      return { status: 400, error: 'Payment date is required when provided.' };
+    if (
+      paymentDate !== undefined &&
+      (typeof paymentDate !== "string" ||
+        paymentDate.trim() === "" ||
+        isNaN(new Date(paymentDate).getTime()))
+    ) {
+      return { status: 400, error: "Payment date must be a valid date string when provided." };
     }
 
     const payment = await AccountPayment.findOne({
@@ -142,9 +147,11 @@ const putAccountPaymentHandler = async (
     if (notes !== undefined) {
       payment.notes = notes || undefined;
     }
-    if (paymentDate !== undefined) {
-      // update paymentDate only when provided (allow empty string handled above)
-      payment.paymentDate = new Date(paymentDate);
+      const parsedDate = new Date(paymentDate);
+      if (isNaN(parsedDate.getTime())) {
+        return { status: 400, error: "Invalid payment date format." };
+      }
+      payment.paymentDate = parsedDate;
     }
 
     await payment.save();
