@@ -65,7 +65,12 @@ export default function ItemTransactionDetailsPage() {
   const tdTextEmphasized = `${tdBaseClasses} text-[color:var(--foreground)] font-medium`;
 
   if (isLoading) {
-    return <p className={themedTextMuted}>Loading item details...</p>;
+    return (
+      <div className="flex items-center justify-center space-x-3 py-6">
+        <div className="w-5 h-5 border-2 border-t-[color:var(--primary)] border-gray-200 rounded-full animate-spin"></div>
+        <p className={themedTextMuted}>Loading item details...</p>
+      </div>
+    );
   }
 
   if (error) {

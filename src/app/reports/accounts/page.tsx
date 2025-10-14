@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 interface IPaymentHistory {
@@ -73,6 +73,7 @@ export default function AccountsPage() {
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const [editingAmount, setEditingAmount] = useState('');
   const [editingNotes, setEditingNotes] = useState('');
+  const [editingDate, setEditingDate] = useState('');
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
 
   const debounce = <T extends unknown[], R>(
@@ -97,7 +98,7 @@ export default function AccountsPage() {
     return () => clearTimeout(timer);
   }, [filterName]);
 
-  const fetchDistinctCustomersForSearch = async (searchTerm: string) => {
+  const fetchDistinctCustomersForSearch = useCallback(async (searchTerm: string) => {
     if (!searchTerm.trim()) {
       setCustomerSearchResults([]);
       setShowCustomerSearchResults(false);
@@ -120,14 +121,26 @@ export default function AccountsPage() {
     } finally {
       setIsLoadingCustomerSearch(false);
     }
-  };
+  }, []);
 
-  const debouncedFetchCustomers = useCallback(
-    debounce<[string], void>((searchTerm: string) => {
+  const debouncedFetchCustomers = useMemo(
+    () => debounce<[string], void>((searchTerm: string) => {
       fetchDistinctCustomersForSearch(searchTerm);
     }, 500),
     [fetchDistinctCustomersForSearch]
   );
+
+  const handleExport = () => {
+    const queryParams = new URLSearchParams();
+    queryParams.append('type', activeTab);
+    if (filterName.trim()) {
+      queryParams.append(
+        activeTab === 'receivable' ? 'customerName' : 'supplierName',
+        filterName.trim()
+      );
+    }
+    window.location.href = `/api/export/accounts?${queryParams.toString()}`;
+  };
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -251,6 +264,7 @@ export default function AccountsPage() {
           paymentId,
           amount,
           notes,
+          paymentDate: editingDate || undefined,
         }),
       });
       
@@ -265,6 +279,7 @@ export default function AccountsPage() {
       setEditingPaymentId(null);
       setEditingAmount('');
       setEditingNotes('');
+      setEditingDate('');
     } catch (err: unknown) {
       setPaymentHistoryError(err instanceof Error ? err.message : 'Failed to update payment');
     } finally {
@@ -283,12 +298,19 @@ export default function AccountsPage() {
     setEditingPaymentId(payment._id);
     setEditingAmount(payment.amount.toString());
     setEditingNotes(payment.notes || '');
+    try {
+      const d = new Date(payment.paymentDate);
+      setEditingDate(d.toISOString().split('T')[0]);
+    } catch (_e) {
+      setEditingDate('');
+    }
   };
 
   const handleCancelEditPayment = () => {
     setEditingPaymentId(null);
     setEditingAmount('');
     setEditingNotes('');
+    setEditingDate('');
     setPaymentHistoryError(null);
   };
 
@@ -389,7 +411,7 @@ export default function AccountsPage() {
 
   const renderInitialBalanceForm = () => {
     return (
-      <form onSubmit={handleSetInitialBalance} className="mt-6 p-6 shadow-md rounded-lg bg-gray-50 space-y-4">
+      <form onSubmit={handleSetInitialBalance} className="mt-6 p-6 shadow-md rounded-lg bg-white space-y-4">
         <h3 className="text-lg font-medium">Atur Saldo Awal {activeTab === 'receivable' ? 'Piutang' : 'Utang'}</h3>
         {error && <p className="text-sm text-red-500">{error}</p>}
         <div className="relative">
@@ -444,7 +466,7 @@ export default function AccountsPage() {
         {balanceFormSuccess && <p className="text-sm text-green-500">{balanceFormSuccess}</p>}
         <button
           type="submit"
-          className="px-4 py-2 bg-[color:var(--primary)] cursor-pointer text-white rounded-md text-sm font-medium"
+          className="px-4 py-2 bg-[color:var(--primary)] hover:bg-[color:var(--btn-hover-bg-primary)] cursor-pointer text-white rounded-md text-sm font-medium"
         >
           Simpan Saldo Awal
         </button>
@@ -517,9 +539,18 @@ export default function AccountsPage() {
                         <div className="flex items-center space-x-4">
                           <div>
                             <p className="text-sm text-[color:var(--muted)]">Tanggal</p>
-                            <p className="font-medium text-[color:var(--foreground)]">
-                              {new Date(payment.paymentDate).toLocaleDateString('id-ID')}
-                            </p>
+                            {editingPaymentId === payment._id ? (
+                              <input
+                                type="date"
+                                value={editingDate}
+                                onChange={(e) => setEditingDate(e.target.value)}
+                                className="px-2 py-1 text-sm border border-[color:var(--border-color)] rounded bg-[color:var(--card-bg)] text-[color:var(--foreground)]"
+                              />
+                            ) : (
+                              <p className="font-medium text-[color:var(--foreground)]">
+                                {new Date(payment.paymentDate).toLocaleDateString('id-ID')}
+                              </p>
+                            )}
                           </div>
                           <div>
                             <p className="text-sm text-[color:var(--muted)]">Jumlah</p>
@@ -814,7 +845,15 @@ export default function AccountsPage() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">Laporan Piutang & Utang</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Laporan Piutang & Utang</h1>
+        <button
+          onClick={handleExport}
+          className="px-4 py-2 bg-green-600 cursor-pointer text-white rounded-md hover:bg-green-700 text-sm font-medium"
+        >
+          Ekspor ke Excel
+        </button>
+      </div>
 
       <div className="mb-4 border-b border-gray-200">
         <nav className="-mb-px flex space-x-8" aria-label="Tabs">

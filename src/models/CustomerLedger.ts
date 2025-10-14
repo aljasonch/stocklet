@@ -33,11 +33,12 @@ const CustomerLedgerSchema: Schema<ICustomerLedger> = new Schema(
       required: [true, 'Created by user is required.'],
     },
   },
-  { 
-    timestamps: true,
-    indexes: [{ fields: { customerName: 1, createdBy: 1 }, unique: true }]
+  {
+    timestamps: true
   }
 );
+
+CustomerLedgerSchema.index({ customerName: 1, createdBy: 1 }, { unique: true });
 
 const CustomerLedger: Model<ICustomerLedger> =
   models.CustomerLedger || mongoose.model<ICustomerLedger>('CustomerLedger', CustomerLedgerSchema);

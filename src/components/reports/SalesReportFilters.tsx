@@ -1,7 +1,7 @@
 'use client';
 
 import { IItem } from '@/models/Item';
-import { useState, useEffect, FormEvent, ChangeEvent, useCallback, useRef } from 'react';
+import { useState, useEffect, FormEvent, ChangeEvent, useCallback, useRef, useMemo } from 'react';
 
 interface FilterState {
   view: 'monthly' | 'overall' | 'custom_range';
@@ -76,8 +76,8 @@ export default function SalesReportFilters({
     setShowItemDropdown(filtered.length > 0);
   }, [items]);
 
-  const debouncedSearchItems = useCallback(
-    debounce((searchTerm: string) => {
+  const debouncedSearchItems = useMemo(
+    () => debounce((searchTerm: string) => {
       searchItems(searchTerm);
     }, 300),
     [searchItems]
@@ -160,7 +160,7 @@ export default function SalesReportFilters({
           onChange={(e: ChangeEvent<HTMLSelectElement>) => setView(e.target.value as FilterState['view'])} 
           className={formElementStyles}
         >
-          <option value="overall">Keseluruhan (Default: Tahun Ini)</option>
+          <option value="overall">Per Tahun (Default)</option>
           <option value="monthly">Per Bulan</option>
           <option value="custom_range">Rentang Tanggal Kustom</option>
         </select>
@@ -186,9 +186,8 @@ export default function SalesReportFilters({
       
       {view === 'overall' && (
          <div>
-            <label htmlFor="year-overall" className={labelStyles}>Tahun (Opsional, jika kosong tampil semua)</label>
+            <label htmlFor="year-overall" className={labelStyles}>Tahun</label>
             <select id="year-overall" value={year} onChange={(e) => setYear(e.target.value)} className={formElementStyles}>
-              <option value="">Semua Tahun</option>
               {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
         </div>

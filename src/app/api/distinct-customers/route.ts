@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server';
 import { Document } from 'mongoose';
 import dbConnect from '@/lib/dbConnect';
 import Transaction from '@/models/Transaction';
-import CustomerLedger from '@/models/CustomerLedger';
 import { withAuthStatic, HandlerResult } from '@/lib/authUtils';
 import mongoose from 'mongoose';
 
@@ -33,29 +32,25 @@ const getDistinctCustomersHandler = async (
       ledgerMatchCondition.customerName = { $regex: new RegExp(searchQuery, 'i') };
     }
 
-    const transactionPipeline: mongoose.PipelineStage[] = [
+    const pipeline: mongoose.PipelineStage[] = [
       { $match: transactionMatchCondition },
-      { $group: { _id: '$customer' } },
+      { $project: { name: '$customer' } },
+      {
+        $unionWith: {
+          coll: 'customerledgers',
+          pipeline: [
+            { $match: ledgerMatchCondition },
+            { $project: { name: '$customerName' } },
+          ],
+        },
+      },
+      { $group: { _id: '$name' } },
+      { $sort: { _id: 1 } },
+      ...(limit ? [{ $limit: limit }] : []),
     ];
 
-    const ledgerPipeline: mongoose.PipelineStage[] = [
-      { $match: ledgerMatchCondition },
-      { $group: { _id: '$customerName' } }, 
-    ];
-
-    const [transactionResults, ledgerResults] = await Promise.all([
-      Transaction.aggregate(transactionPipeline),
-      CustomerLedger.aggregate(ledgerPipeline)
-    ]);
-
-    const transactionCustomers = transactionResults.map(item => item._id);
-    const ledgerCustomers = ledgerResults.map(item => item._id);
-    
-    const allCustomers = [...new Set([...transactionCustomers, ...ledgerCustomers])]
-      .filter(name => name != null)
-      .sort();
-    
-    const finalCustomers = limit ? allCustomers.slice(0, limit) : allCustomers;
+    const results = await Transaction.aggregate(pipeline);
+    const finalCustomers = results.map(r => r._id).filter((n): n is string => n != null);
 
     return {
       status: 200,
