@@ -124,7 +124,7 @@ const getExportSalesHandler = async (request: NextRequest): Promise<Response> =>
 
     const salesData = await Transaction.find(matchQuery)
       .populate<{ item: IItem }>('item', 'namaBarang')
-      .sort({ tanggal: -1 })
+      .sort({ tanggal: 1 })
       .lean<SalesTxLean[]>();
 
     if (salesData.length === 0) {
