@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import Transaction, { ITransaction } from '@/models/Transaction';
 import { TransactionType } from '@/types/enums';
-import Item, { IItem } from '@/models/Item';
+import Item from '@/models/Item';
 import { withAuthStatic, HandlerResult } from '@/lib/authUtils';
 import mongoose from 'mongoose'; 
 
@@ -43,13 +43,19 @@ const postHandler = async (
       return { status: 404, error: 'Item not found.' };
     }
 
-    // Removed stock check to allow transactions even if stock is zero or negative.
-    // if (tipe === TransactionType.PENJUALAN && item.stokSaatIni < berat) {
-    //   return { 
-    //     status: 400, 
-    //     error: `Stok tidak mencukupi untuk ${item.namaBarang}. Stok saat ini: ${item.stokSaatIni} kg.` 
-    //   };
-    // }
+    if (tipe === TransactionType.PENJUALAN && item.stokSaatIni < berat) {
+      return {
+        status: 400,
+        error: `Stok tidak mencukupi untuk ${item.namaBarang}. Stok saat ini: ${item.stokSaatIni.toFixed(2)} kg.`
+      };
+    }
+
+    if (tipe === TransactionType.PENJUALAN) {
+      item.stokSaatIni -= berat;
+    } else if (tipe === TransactionType.PEMBELIAN) {
+      item.stokSaatIni += berat;
+    }
+    await item.save();
 
     const totalHarga = berat * harga;
 
@@ -108,10 +114,10 @@ const getHandler = async (
     }
 
     const transactions = await Transaction.find(queryOptions)
-      .populate<{item: IItem}>('item', 'namaBarang')
-      .sort({ tanggal: 1, createdAt: 1 }) 
+      .sort({ tanggal: -1, _id: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     const totalTransactions = await Transaction.countDocuments(queryOptions);
     const totalPages = Math.ceil(totalTransactions / limit);

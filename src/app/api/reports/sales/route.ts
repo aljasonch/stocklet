@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import Transaction, { ITransaction } from '@/models/Transaction'; 
 import { TransactionType } from '@/types/enums'; 
-import { IItem } from '@/models/Item';
 import mongoose from 'mongoose';
 import { withAuthStatic, HandlerResult } from '@/lib/authUtils';
 
@@ -91,8 +90,8 @@ const getSalesReportHandler = async (
 
 
     const salesReport = await Transaction.find(matchQuery)
-      .populate<{item: IItem}>('item', 'namaBarang')
-      .sort({ tanggal: 1, createdAt: 1 });
+      .sort({ tanggal: 1, _id: 1 })
+      .lean();
 
     return { status: 200, data: { salesReport: salesReport as ITransaction[] } };
   } catch (error) {

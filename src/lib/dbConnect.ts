@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 
-// Import all models to ensure they are registered with Mongoose when the DB connection is established.
 import '@/models/User';
 import '@/models/Item';
 import '@/models/Transaction';

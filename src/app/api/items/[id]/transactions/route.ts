@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import Transaction, { ITransaction } from '@/models/Transaction';
-import Item, { IItem } from '@/models/Item';
+import Item from '@/models/Item';
 import { withAuthStatic, HandlerResult } from '@/lib/authUtils'; 
 import mongoose from 'mongoose';
 
@@ -35,8 +35,8 @@ const getItemTransactionsHandler = async (
       item: itemId, 
       createdBy: new mongoose.Types.ObjectId(userId)
     })
-      .populate<{item: IItem}>('item', 'namaBarang') 
-      .sort({ tanggal: 1, createdAt: 1 }); 
+      .sort({ tanggal: 1, _id: 1 })
+      .lean(); 
 
     return { status: 200, data: { transactions: transactions as ITransaction[] } };
   } catch (error) {

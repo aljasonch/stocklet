@@ -97,6 +97,9 @@ TransactionSchema.index({
   createdBy: 1, 
   tanggal: -1 
 });
+
+TransactionSchema.index({ customer: 1, createdBy: 1 });
+
 TransactionSchema.index({
   tipe: 1,
   tanggal: -1

@@ -51,22 +51,18 @@ export interface HandlerResult {
   message?: string; 
 }
 
-// TParams is the type of the *resolved* parameters object, e.g., { id: string } or Record<string, never>
 export function withAuthStatic<TParams = Record<string, string | string[] | undefined>>(
-  // Inner handler expects context with resolved params
   handler: (
     req: NextRequest,
-    context: { params: TParams }, // Context with resolved params
+    context: { params: TParams },
     userId: string,
     userEmail: string,
     jti: string
   ) => Promise<HandlerResult>
 ) {
-  // The function returned to Next.js
-  // Its context.params is typed as a Promise to satisfy Next.js's internal type checker.
   return async (
     req: NextRequest,
-    contextFromNextJs: { params: Promise<TParams> } // Context with params as a Promise (for type checker)
+    contextFromNextJs: { params: Promise<TParams> }
   ) => {
     await dbConnect();
 
@@ -84,13 +80,10 @@ export function withAuthStatic<TParams = Record<string, string | string[] | unde
       return errResponse;
     }
 
-    // Resolve the params. If contextFromNextJs.params is not a promise at runtime, 
-    // await will effectively return the value itself. This satisfies the type checker.
     const resolvedParams = await contextFromNextJs.params;
-    
     const handlerResult = await handler(
       req,
-      { params: resolvedParams }, // Pass context with resolved params to the inner handler
+      { params: resolvedParams },
       decodedToken.userId,
       decodedToken.email,
       decodedToken.jti

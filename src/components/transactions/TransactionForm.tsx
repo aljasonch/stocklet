@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, FormEvent, useEffect, useRef } from 'react';
 import { IItem } from '@/models/Item';
 import { TransactionType } from '@/types/enums';
 import { ITransaction } from '@/models/Transaction';
@@ -41,27 +41,16 @@ export default function TransactionForm({ onTransactionAdded, isEditMode = false
   const [showItemSearchResults, setShowItemSearchResults] = useState(false);
   const [selectedItemName, setSelectedItemName] = useState<string>('');
 
+  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const debounce = <T extends unknown[], R>(
-    func: (...args: T) => R,
-    waitFor: number
-  ) => {
-    let timeout: ReturnType<typeof setTimeout> | null = null;
-    return (...args: T): Promise<R> => {
-      return new Promise(resolve => {
-        if (timeout) {
-          clearTimeout(timeout);
-        }
-        timeout = setTimeout(() => resolve(func(...args)), waitFor);
-      });
-    };
+  const debouncedFetchItems = (term: string) => {
+    if (debounceTimeout.current) {
+      clearTimeout(debounceTimeout.current);
+    }
+    debounceTimeout.current = setTimeout(() => {
+      fetchItemsForSearch(term);
+    }, 300);
   };
-  
-  // Explicitly type the debounced function
-  const debouncedFetchItems = debounce<[string], Promise<void>>(
-    (searchTerm: string) => fetchItemsForSearch(searchTerm),
-    300
-  );
 
   const fetchItemsForSearch = async (searchTerm: string) => {
     if (!searchTerm.trim()) {
@@ -318,7 +307,7 @@ export default function TransactionForm({ onTransactionAdded, isEditMode = false
       )}
 
       <div className="pt-4">
-        <button type="submit" disabled={isSubmitting || isLoadingItems} className="w-full cursor-pointer flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[color:var(--primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[color:var(--primary)] disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-150 ease-in-out">
+        <button type="submit" disabled={isSubmitting || isLoadingItems} className="w-full cursor-pointer flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[color:var(--primary)] hover:bg-[#397b78e5] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[color:var(--primary)] disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-150 ease-in-out">
           {isSubmitting ? (
             <>
               <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

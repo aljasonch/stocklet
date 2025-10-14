@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
+const ITEMS_PER_PAGE = 8;
+
 interface TransactionsListProps {
   refreshKey?: number;
 }
@@ -20,12 +22,12 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalItems, setTotalItems] = useState(0);
-  const itemsPerPage = 8
+
 
   const fetchTransactions = async (pageToFetch: number, currentFilterType: FilterType) => {
     setIsLoading(true);
     setError(null);
-    let url = `/api/transactions?page=${pageToFetch}&limit=${itemsPerPage}`;
+    let url = `/api/transactions?page=${pageToFetch}&limit=${ITEMS_PER_PAGE}`;
     if (currentFilterType !== 'ALL') {
       url += `&tipe=${currentFilterType}`;
     }
@@ -69,7 +71,12 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
   const themedTextError = "text-center text-red-600";
 
   if (isLoading) {
-    return <p className={themedTextMuted}>Loading transactions...</p>;
+    return (
+      <div className="flex items-center justify-center space-x-3 py-6">
+        <div className="w-5 h-5 border-2 border-t-[color:var(--primary)] border-gray-200 rounded-full animate-spin"></div>
+        <p className={themedTextMuted}>Loading transactions...</p>
+      </div>
+    );
   }
 
   if (error) {
@@ -78,15 +85,7 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
     </div>;
   }
 
-  if (isLoading && transactions.length === 0) {
-    return <p className={themedTextMuted}>Loading transactions...</p>;
-  }
 
-  if (error) {
-    return <div className="p-4 my-4 bg-opacity-10 rounded-md">
-        <p className={themedTextError}>Error: {error}</p>
-    </div>;
-  }
 
   if (!isLoading && transactions.length === 0) {
     return (
@@ -198,7 +197,7 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
           <tbody className="bg-[color:var(--card-bg)] divide-y divide-[color:var(--border-color)]">
             {transactions.map((tx) => (
               <tr key={tx._id as string} className="hover:bg-[color:var(--background)] transition-colors duration-150">
-                <td className={tdTextMuted}>{new Date(tx.tanggal).toLocaleDateString('id-ID')}</td>
+                <td className={tdTextMuted}>{new Date(tx.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</td>
                 <td className={`${tdBaseClasses}`}>
                   <span className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
                     tx.tipe === 'PENJUALAN' 
@@ -258,7 +257,7 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
         <button
           onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
           disabled={currentPage === 1 || isLoading}
-          className="px-4 py-2 text-sm font-medium rounded-md cursor-pointer bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 text-sm font-medium rounded-md cursor-pointer bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent"
         >
           Previous
         </button>
@@ -268,7 +267,7 @@ export default function TransactionsList({ refreshKey }: TransactionsListProps) 
         <button
           onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
           disabled={currentPage === totalPages || isLoading}
-          className="px-4 py-2 text-sm font-medium rounded-md cursor-pointer bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 text-sm font-medium rounded-md cursor-pointer bg-[color:var(--btn-bg)] hover:bg-[color:var(--btn-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent"
         >
           Next
         </button>
