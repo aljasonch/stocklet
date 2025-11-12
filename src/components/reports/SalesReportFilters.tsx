@@ -98,7 +98,7 @@ export default function SalesReportFilters({
   };
 
   const handleSelectItem = (item: IItem) => {
-    setItemId(item._id as string);
+    setItemId(item._id.toString());
     setSelectedItemName(item.namaBarang);
     setItemSearchTerm(item.namaBarang);
     setFilteredItems([]);
@@ -259,7 +259,7 @@ export default function SalesReportFilters({
               >
                 {filteredItems.map((item) => (
                   <li
-                    key={item._id as string}
+                    key={item._id.toString()}
                     onClick={() => handleSelectItem(item)}
                     className="px-3 py-2 hover:bg-[color:var(--surface)] cursor-pointer text-sm text-[color:var(--foreground)] border-b border-[color:var(--border-color)] last:border-b-0"
                   >
