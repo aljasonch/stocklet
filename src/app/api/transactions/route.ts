@@ -50,13 +50,6 @@ const postHandler = async (
       };
     }
 
-    if (tipe === TransactionType.PENJUALAN) {
-      item.stokSaatIni -= berat;
-    } else if (tipe === TransactionType.PEMBELIAN) {
-      item.stokSaatIni += berat;
-    }
-    await item.save();
-
     const totalHarga = berat * harga;
 
     const newTransaction = new Transaction({
