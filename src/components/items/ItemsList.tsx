@@ -486,7 +486,7 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
                       const updatedItemData = await response.json();
                       setItems((prev) =>
                         prev.map((i) =>
-                          i._id === adjustingItemId ? updatedItemData.item : i
+                          i._id.toString() === adjustingItemId ? updatedItemData.item : i
                         )
                       );
                       setIsStockModalOpen(false);
@@ -677,7 +677,7 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
                       const updatedItemData = await response.json();
                       setItems((prev) =>
                         prev.map((i) =>
-                          i._id === editingItemId
+                          i._id.toString() === editingItemId
                             ? { ...i, ...updatedItemData.item }
                             : i
                         )
