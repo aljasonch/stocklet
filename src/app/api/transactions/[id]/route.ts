@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
-import Transaction from '@/models/Transaction';
+import Transaction, { ITransaction } from '@/models/Transaction';
 import Item, { IItem } from '@/models/Item';
 import { TransactionType } from '@/types/enums';
 import mongoose from 'mongoose';
@@ -75,68 +75,111 @@ const updateTransactionHandler = async (
     if (!Object.values(TransactionType).includes(tipe as TransactionType)) {
         return { status: 400, error: 'Invalid transaction type.' };
     }
+    if (typeof itemId === 'string' && !mongoose.Types.ObjectId.isValid(itemId)) {
+      return { status: 400, error: 'Invalid item ID.' };
+    }
 
-    const oldTransaction = await Transaction.findOne({ _id: transactionId, createdBy: new mongoose.Types.ObjectId(userId) });
-    if (!oldTransaction) {
+    const session = await mongoose.startSession();
+    let updatedTransaction: ITransaction | null = null;
+
+    try {
+      await session.withTransaction(async () => {
+        const transactionObjectId = new mongoose.Types.ObjectId(transactionId);
+        const userObjectId = new mongoose.Types.ObjectId(userId);
+        const newItemObjectId = typeof itemId === 'string' ? new mongoose.Types.ObjectId(itemId) : (itemId as mongoose.Types.ObjectId);
+
+        const existingTransaction = await Transaction.findOne({ _id: transactionObjectId, createdBy: userObjectId })
+          .session(session);
+
+        if (!existingTransaction) {
+          throw new Error('TRANSACTION_NOT_FOUND');
+        }
+
+        const originalItemId = existingTransaction.item as mongoose.Types.ObjectId;
+        const revertDelta = existingTransaction.tipe === TransactionType.PENJUALAN
+          ? existingTransaction.berat
+          : -existingTransaction.berat;
+
+        const revertedItem = await Item.findOneAndUpdate(
+          { _id: originalItemId },
+          { $inc: { stokSaatIni: revertDelta } },
+          { new: true, session }
+        );
+
+        if (!revertedItem) {
+          throw new Error('ITEM_NOT_FOUND');
+        }
+
+        const transactionDate = typeof tanggal === 'string' ? new Date(tanggal) : tanggal;
+
+        let targetItemSnapshotName: string;
+
+        if (tipe === TransactionType.PENJUALAN) {
+          const targetItem = await Item.findOneAndUpdate(
+            { _id: newItemObjectId, stokSaatIni: { $gte: berat } },
+            { $inc: { stokSaatIni: -berat } },
+            { new: true, session }
+          );
+
+          if (!targetItem) {
+            throw new Error('INSUFFICIENT_STOCK');
+          }
+
+          targetItemSnapshotName = targetItem.namaBarang;
+        } else {
+          const targetItem = await Item.findOneAndUpdate(
+            { _id: newItemObjectId },
+            { $inc: { stokSaatIni: berat } },
+            { new: true, session }
+          );
+
+          if (!targetItem) {
+            throw new Error('ITEM_NOT_FOUND');
+          }
+
+          targetItemSnapshotName = targetItem.namaBarang;
+        }
+
+        existingTransaction.tanggal = transactionDate;
+        existingTransaction.tipe = tipe;
+        existingTransaction.customer = customer;
+        existingTransaction.noSJ = noSJ;
+        existingTransaction.noInv = noInv;
+        existingTransaction.noPO = noPO;
+        existingTransaction.item = newItemObjectId;
+        existingTransaction.namaBarangSnapshot = targetItemSnapshotName;
+        existingTransaction.berat = berat;
+        existingTransaction.harga = harga;
+        existingTransaction.totalHarga = berat * harga;
+        existingTransaction.noSJSby = noSJSby;
+
+        updatedTransaction = await existingTransaction.save({ session });
+      });
+    } finally {
+      session.endSession();
+    }
+
+    if (!updatedTransaction) {
       return { status: 404, error: 'Transaction not found or not owned by user.' };
     }
 
-    const newItemDoc = await Item.findById(itemId);
-    if (!newItemDoc) {
-      return { status: 404, error: 'Item not found for transaction update.' };
-    }
-    const currentTargetItem = newItemDoc as IItem;
-
-    const originalItemDoc = await Item.findById(oldTransaction.item as mongoose.Types.ObjectId);
-    if (originalItemDoc) {
-      if (oldTransaction.tipe === TransactionType.PENJUALAN) {
-        originalItemDoc.stokSaatIni += oldTransaction.berat;
-      } else if (oldTransaction.tipe === TransactionType.PEMBELIAN) {
-        originalItemDoc.stokSaatIni -= oldTransaction.berat;
-      }
-      await originalItemDoc.save();
-    }
-
-    if (tipe === TransactionType.PENJUALAN) {
-      const originalItemId = originalItemDoc?._id as mongoose.Types.ObjectId | undefined;
-      const currentTargetItemId = currentTargetItem._id as mongoose.Types.ObjectId;
-
-      if (currentTargetItem.stokSaatIni < berat && !(originalItemId && originalItemId.equals(currentTargetItemId) && (originalItemDoc!.stokSaatIni + oldTransaction.berat) >= berat) ) {
-        if (originalItemDoc && originalItemId && !originalItemId.equals(currentTargetItemId)) { 
-        } else if (originalItemDoc) {
-            if (oldTransaction.tipe === TransactionType.PENJUALAN) originalItemDoc.stokSaatIni -= oldTransaction.berat;
-            else if (oldTransaction.tipe === TransactionType.PEMBELIAN) originalItemDoc.stokSaatIni += oldTransaction.berat;
-            await originalItemDoc.save();
-        }
-        return { status: 400, error: `Stok tidak mencukupi untuk ${currentTargetItem.namaBarang}.` };
-      }
-      currentTargetItem.stokSaatIni -= berat;
-    } else if (tipe === TransactionType.PEMBELIAN) {
-      currentTargetItem.stokSaatIni += berat;
-    }
-    await currentTargetItem.save();
-    
-    oldTransaction.tanggal = typeof tanggal === 'string' ? new Date(tanggal) : tanggal;
-    oldTransaction.tipe = tipe;
-    oldTransaction.customer = customer;
-    oldTransaction.noSJ = noSJ;
-    oldTransaction.noInv = noInv;
-    oldTransaction.noPO = noPO;
-    oldTransaction.item = typeof itemId === 'string' ? new mongoose.Types.ObjectId(itemId) : itemId;
-    oldTransaction.namaBarangSnapshot = currentTargetItem.namaBarang;
-    oldTransaction.berat = berat;
-    oldTransaction.harga = harga;
-    oldTransaction.totalHarga = berat * harga;
-    oldTransaction.noSJSby = noSJSby;
-
-    const updatedTransaction = await oldTransaction.save();
-
-    return { status: 200, message: 'Transaction updated successfully.', data: { transaction: updatedTransaction }};
+    return { status: 200, message: 'Transaction updated successfully.', data: { transaction: updatedTransaction } };
 
   } catch (error: unknown) {
     console.error(`Update transaction ${transactionId} error:`, error);
-    if (error instanceof mongoose.Error.ValidationError) {
-      return { status: 400, error: error.message };
+    if (error instanceof Error) {
+      if (error.message === 'TRANSACTION_NOT_FOUND') {
+        return { status: 404, error: 'Transaction not found or not owned by user.' };
+      }
+      if (error.message === 'INSUFFICIENT_STOCK') {
+        return { status: 400, error: 'Stok tidak mencukupi untuk barang yang dipilih.' };
+      }
+      if (error.message === 'ITEM_NOT_FOUND') {
+        return { status: 404, error: 'Item not found for transaction update.' };
+      }
+      if (error instanceof mongoose.Error.ValidationError) {
+        return { status: 400, error: error.message };
+      }
     }
     return { status: 500, error: 'An internal server error occurred.' };
   }
@@ -157,25 +200,56 @@ const deleteTransactionHandler = async (
   }
   
   try {
-    const transactionToDelete = await Transaction.findOneAndDelete({ _id: transactionId, createdBy: new mongoose.Types.ObjectId(userId) });
+    const session = await mongoose.startSession();
+    let deleted = false;
 
-    if (!transactionToDelete) {
-      return { status: 404, error: 'Transaction not found or not owned by user.' };
+    try {
+      await session.withTransaction(async () => {
+        const transactionObjectId = new mongoose.Types.ObjectId(transactionId);
+        const deletedTransaction = await Transaction.findOneAndDelete(
+          { _id: transactionObjectId, createdBy: new mongoose.Types.ObjectId(userId) },
+          { session }
+        );
+
+        if (!deletedTransaction) {
+          throw new Error('TRANSACTION_NOT_FOUND');
+        }
+
+        const adjustment = deletedTransaction.tipe === TransactionType.PENJUALAN
+          ? deletedTransaction.berat
+          : -deletedTransaction.berat;
+
+        const item = await Item.findOneAndUpdate(
+          { _id: deletedTransaction.item as mongoose.Types.ObjectId },
+          { $inc: { stokSaatIni: adjustment } },
+          { session }
+        );
+
+        if (!item) {
+          throw new Error('ITEM_NOT_FOUND');
+        }
+
+        deleted = true;
+      });
+    } finally {
+      session.endSession();
     }
 
-    const item = await Item.findById(transactionToDelete.item);
-    if (item) {
-      if (transactionToDelete.tipe === TransactionType.PENJUALAN) {
-        item.stokSaatIni += transactionToDelete.berat;
-      } else if (transactionToDelete.tipe === TransactionType.PEMBELIAN) {
-        item.stokSaatIni -= transactionToDelete.berat;
-      }
-      await item.save();
+    if (!deleted) {
+      return { status: 404, error: 'Transaction not found or not owned by user.' };
     }
 
     return { status: 200, message: 'Transaction deleted successfully.' };
   } catch (error: unknown) {
     console.error(`Delete transaction ${transactionId} error:`, error);
+    if (error instanceof Error) {
+      if (error.message === 'TRANSACTION_NOT_FOUND') {
+        return { status: 404, error: 'Transaction not found or not owned by user.' };
+      }
+      if (error.message === 'ITEM_NOT_FOUND') {
+        return { status: 404, error: 'Associated item not found for transaction.' };
+      }
+    }
     return { status: 500, error: 'An internal server error occurred.' };
   }
 };

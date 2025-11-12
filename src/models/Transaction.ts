@@ -105,28 +105,6 @@ TransactionSchema.index({
   tanggal: -1
 });
 
-TransactionSchema.post<ITransaction>('save', async function (doc: ITransaction, next: (error?: Error) => void) { 
-  try {
-    const item = await mongoose.model<IItem>('Item').findById(doc.item);
-    if (item) {
-      if (doc.tipe === TransactionType.PENJUALAN) {
-        item.stokSaatIni -= doc.berat;
-      } else if (doc.tipe === TransactionType.PEMBELIAN) {
-        item.stokSaatIni += doc.berat;
-      }
-      await item.save();
-    }
-    next();
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      next(error);
-    } else {
-      next(new Error('An unknown error occurred in post-save hook'));
-    }
-  }
-});
-
-
 const Transaction: Model<ITransaction> =
   models.Transaction || mongoose.model<ITransaction>('Transaction', TransactionSchema);
 

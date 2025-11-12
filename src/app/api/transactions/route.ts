@@ -38,54 +38,105 @@ const postHandler = async (
         return { status: 400, error: 'Invalid transaction type.' };
     }
 
-    const item = await Item.findById(itemId);
-    if (!item) {
-      return { status: 404, error: 'Item not found.' };
+    if (typeof itemId === 'string' && !mongoose.Types.ObjectId.isValid(itemId)) {
+      return { status: 400, error: 'Invalid item ID.' };
     }
 
-    if (tipe === TransactionType.PENJUALAN && item.stokSaatIni < berat) {
-      return {
-        status: 400,
-        error: `Stok tidak mencukupi untuk ${item.namaBarang}. Stok saat ini: ${item.stokSaatIni.toFixed(2)} kg.`
-      };
+    const session = await mongoose.startSession();
+    let createdTransaction: ITransaction | null = null;
+
+    try {
+      await session.withTransaction(async () => {
+        const itemObjectId = new mongoose.Types.ObjectId(itemId);
+        const userObjectId = new mongoose.Types.ObjectId(userId);
+        const item = await Item.findById(itemObjectId).session(session);
+
+        if (!item) {
+          throw new Error('ITEM_NOT_FOUND');
+        }
+
+        const transactionDate = typeof tanggal === 'string' ? new Date(tanggal) : tanggal;
+        const totalHarga = berat * harga;
+
+        if (tipe === TransactionType.PENJUALAN) {
+          const updatedItem = await Item.findOneAndUpdate(
+            { _id: itemObjectId, stokSaatIni: { $gte: berat } },
+            { $inc: { stokSaatIni: -berat } },
+            { new: true, session }
+          );
+
+          if (!updatedItem) {
+            throw new Error('INSUFFICIENT_STOCK');
+          }
+
+          createdTransaction = await new Transaction({
+            tanggal: transactionDate,
+            tipe,
+            customer,
+            noSJ,
+            noInv,
+            noPO,
+            item: itemObjectId,
+            namaBarangSnapshot: updatedItem.namaBarang,
+            berat,
+            harga,
+            totalHarga,
+            noSJSby,
+            createdBy: userObjectId
+          }).save({ session });
+        } else {
+          const updatedItem = await Item.findOneAndUpdate(
+            { _id: itemObjectId },
+            { $inc: { stokSaatIni: berat } },
+            { new: true, session }
+          );
+
+          if (!updatedItem) {
+            throw new Error('ITEM_NOT_FOUND');
+          }
+
+          createdTransaction = await new Transaction({
+            tanggal: transactionDate,
+            tipe,
+            customer,
+            noSJ,
+            noInv,
+            noPO,
+            item: itemObjectId,
+            namaBarangSnapshot: updatedItem.namaBarang,
+            berat,
+            harga,
+            totalHarga,
+            noSJSby,
+            createdBy: userObjectId
+          }).save({ session });
+        }
+      });
+    } finally {
+      session.endSession();
     }
 
-    if (tipe === TransactionType.PENJUALAN) {
-      item.stokSaatIni -= berat;
-    } else if (tipe === TransactionType.PEMBELIAN) {
-      item.stokSaatIni += berat;
+    if (!createdTransaction) {
+      return { status: 500, error: 'Failed to create transaction.' };
     }
-    await item.save();
 
-    const totalHarga = berat * harga;
-
-    const newTransaction = new Transaction({
-      tanggal,
-      tipe,
-      customer,
-      noSJ,
-      noInv,
-      noPO,
-      item: itemId,
-      namaBarangSnapshot: item.namaBarang,
-      berat,
-      harga,
-      totalHarga,
-      noSJSby,
-      createdBy: userId
-    });
-
-    await newTransaction.save();
-
-    return { 
-      status: 201, 
-      message: 'Transaction created successfully.', 
-      data: { transaction: newTransaction } 
+    return {
+      status: 201,
+      message: 'Transaction created successfully.',
+      data: { transaction: createdTransaction }
     };
   } catch (error: unknown) {
     console.error('Create transaction error:', error);
-    if (error instanceof Error && error.name === 'ValidationError') {
-      return { status: 400, error: error.message };
+    if (error instanceof Error) {
+      if (error.message === 'INSUFFICIENT_STOCK') {
+        return { status: 400, error: 'Stok tidak mencukupi untuk barang yang dipilih.' };
+      }
+      if (error.message === 'ITEM_NOT_FOUND') {
+        return { status: 404, error: 'Item not found.' };
+      }
+      if (error.name === 'ValidationError') {
+        return { status: 400, error: error.message };
+      }
     }
     return { status: 500, error: 'An internal server error occurred.' };
   }
