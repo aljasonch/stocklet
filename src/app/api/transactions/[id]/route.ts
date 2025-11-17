@@ -84,11 +84,13 @@ const updateTransactionHandler = async (
     const targetItemObjectId =
       typeof itemId === 'string' ? new mongoose.Types.ObjectId(itemId) : (itemId as mongoose.Types.ObjectId);
 
-    const newItemDoc = await Item.findById(itemId);
+    const newItemDoc = (await Item.findById(itemId)) as (IItem & { _id: mongoose.Types.ObjectId }) | null;
     if (!newItemDoc) {
       return { status: 404, error: 'Item not found for transaction update.' };
     }
-    const originalItemDoc = await Item.findById(oldTransaction.item as mongoose.Types.ObjectId);
+    const originalItemDoc = (await Item.findById(oldTransaction.item as mongoose.Types.ObjectId)) as
+      | (IItem & { _id: mongoose.Types.ObjectId })
+      | null;
 
     const isSameItem = !!(originalItemDoc && originalItemDoc._id.equals(targetItemObjectId));
 
