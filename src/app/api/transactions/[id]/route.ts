@@ -111,7 +111,6 @@ const updateTransactionHandler = async (
       } else if (oldTransaction.tipe === TransactionType.PEMBELIAN) {
         originalItemDoc.stokSaatIni -= oldTransaction.berat;
       }
-      await originalItemDoc.save();
     }
     
     oldTransaction.tanggal = typeof tanggal === 'string' ? new Date(tanggal) : tanggal;
