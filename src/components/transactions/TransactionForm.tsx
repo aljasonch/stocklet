@@ -88,7 +88,7 @@ export default function TransactionForm({ onTransactionAdded, isEditMode = false
   };
 
   const handleSelectItem = (item: IItem) => {
-    setItemId(item._id as string);
+    setItemId(item._id.toString());
     setSelectedItemName(item.namaBarang);
     setItemSearchTerm(item.namaBarang); 
     setItemSearchResults([]);
@@ -274,7 +274,7 @@ export default function TransactionForm({ onTransactionAdded, isEditMode = false
             <ul className="absolute z-10 w-full bg-[color:var(--card-bg)] border border-[color:var(--border-color)] rounded-md shadow-lg mt-1 max-h-60 overflow-auto">
               {itemSearchResults.map((item) => (
                 <li
-                  key={item._id as string}
+                  key={item._id.toString()}
                   onClick={() => handleSelectItem(item)}
                   className="px-3 py-2 hover:bg-[color:var(--background)] cursor-pointer text-sm text-[color:var(--foreground)]"
                 >

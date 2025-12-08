@@ -130,7 +130,7 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
         <ul role="list" className="divide-y divide-[color:var(--border-color)]">
           {items.map((item) => (
             <li
-              key={item._id as string}
+              key={item._id.toString()}
               className="px-4 py-5 sm:px-6  transition-colors duration-150 ease-in-out"
             >
               <div className="flex items-center justify-between">
@@ -171,9 +171,9 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
                       Detail
                     </span>
                   </Link>
-                  <button
+                  <button         
                     onClick={() => {
-                      setEditingItemId(item._id as string);
+                      setEditingItemId(item._id.toString());
                       setEditingItemName(item.namaBarang);
                       setNewItemName(item.namaBarang);
                       setEditNameError(null);
@@ -222,7 +222,7 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
                   </button>
                   <button
                     onClick={() => {
-                      setAdjustingItemId(item._id as string);
+                      setAdjustingItemId(item._id.toString());
                       setCurrentItemForModal(item);
                       setAdjustmentType("add");
                       setAdjustmentValue("");
@@ -486,7 +486,7 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
                       const updatedItemData = await response.json();
                       setItems((prev) =>
                         prev.map((i) =>
-                          i._id === adjustingItemId ? updatedItemData.item : i
+                          i._id.toString() === adjustingItemId ? updatedItemData.item : i
                         )
                       );
                       setIsStockModalOpen(false);
@@ -677,7 +677,7 @@ export default function ItemsList({ initialItems: initialItemsProp, refreshKey }
                       const updatedItemData = await response.json();
                       setItems((prev) =>
                         prev.map((i) =>
-                          i._id === editingItemId
+                          i._id.toString() === editingItemId
                             ? { ...i, ...updatedItemData.item }
                             : i
                         )

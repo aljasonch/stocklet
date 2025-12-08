@@ -81,20 +81,29 @@ const updateTransactionHandler = async (
       return { status: 404, error: 'Transaction not found or not owned by user.' };
     }
 
-    const targetItemObjectId =
-      typeof itemId === 'string' ? new mongoose.Types.ObjectId(itemId) : (itemId as mongoose.Types.ObjectId);
+    const originalItemId = oldTransaction.item as mongoose.Types.ObjectId;
+    const originalItemDoc = await Item.findById(originalItemId);
 
-    const newItemDoc = (await Item.findById(itemId)) as (IItem & { _id: mongoose.Types.ObjectId }) | null;
-    if (!newItemDoc) {
+    const targetItemDoc = await Item.findById(itemId);
+    if (!targetItemDoc) {
       return { status: 404, error: 'Item not found for transaction update.' };
     }
-    const originalItemDoc = (await Item.findById(oldTransaction.item as mongoose.Types.ObjectId)) as
-      | (IItem & { _id: mongoose.Types.ObjectId })
-      | null;
+    const currentTargetItem = targetItemDoc as IItem;
 
-    const isSameItem = !!(originalItemDoc && originalItemDoc._id.equals(targetItemObjectId));
+    if (tipe === TransactionType.PENJUALAN) {
+      let availableStock = currentTargetItem.stokSaatIni;
+      if (originalItemDoc && originalItemDoc._id.equals(currentTargetItem._id)) {
+        if (oldTransaction.tipe === TransactionType.PENJUALAN) {
+          availableStock += oldTransaction.berat;
+        } else if (oldTransaction.tipe === TransactionType.PEMBELIAN) {
+          availableStock -= oldTransaction.berat;
+        }
+      }
 
-    const currentTargetItem = (isSameItem ? originalItemDoc : newItemDoc) as IItem;
+      if (availableStock < berat) {
+        return { status: 400, error: `Stok tidak mencukupi untuk ${currentTargetItem.namaBarang}.` };
+      }
+    }
 
     if (originalItemDoc) {
       if (oldTransaction.tipe === TransactionType.PENJUALAN) {
@@ -103,19 +112,6 @@ const updateTransactionHandler = async (
         originalItemDoc.stokSaatIni -= oldTransaction.berat;
       }
     }
-
-    if (tipe === TransactionType.PENJUALAN) {
-      if (currentTargetItem.stokSaatIni < berat) {
-        return { status: 400, error: `Stok tidak mencukupi untuk ${currentTargetItem.namaBarang}.` };
-      }
-      currentTargetItem.stokSaatIni -= berat;
-    } else if (tipe === TransactionType.PEMBELIAN) {
-      currentTargetItem.stokSaatIni += berat;
-    }
-    if (originalItemDoc && !isSameItem) {
-      await originalItemDoc.save();
-    }
-    await currentTargetItem.save();
     
     oldTransaction.tanggal = typeof tanggal === 'string' ? new Date(tanggal) : tanggal;
     oldTransaction.tipe = tipe;

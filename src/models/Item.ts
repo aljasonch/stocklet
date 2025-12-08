@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document, models, Model } from 'mongoose';
 
 export interface IItem extends Document {
+  _id: mongoose.Types.ObjectId;
   namaBarang: string;
   stokAwal: number;
   stokSaatIni: number;
